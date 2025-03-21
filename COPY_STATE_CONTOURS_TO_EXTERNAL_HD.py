@@ -3,7 +3,15 @@ import shutil
 import time
 from multiprocessing.dummy import Pool as ThreadPool
 
+STATE_FOLDER = ''
 DEST_DRIVE = ''
+
+def log(message):
+    global STATE_FOLDER
+    
+    with open(f"{STATE_FOLDER}\\copy.log", "a") as f:
+        f.write(f"{message}\n")
+
 
 def copyFolder(sourceFolder):
     folder = sourceFolder.split(':')[-1]
@@ -22,20 +30,45 @@ def copyFolder(sourceFolder):
     shutil.copy(f"{sourceFolder}\\{folderName}_Index.geojson", f"{destFolder}\\{folderName}_Index.geojson")
     print(f"FINISHED COPYING {sourceFolder}\\{folderName}_Index.geojson -> {destFolder}\\{folderName}_Index.geojson")
 
-    
+    log(sourceFolder)
+
 
 def main():
+    global STATE_FOLDER
     global DEST_DRIVE
 
-    sourceStateFolder = input("Enter the path to the state folder, including drive letter (e.g. W:\\SOUTH_CAROLINA): ")
+    STATE_FOLDER = input("Enter the path to the state folder, including drive letter (e.g. W:\\SOUTH_CAROLINA): ")
     DEST_DRIVE = input("Enter the drive letter to copy to (e.g. E): ")
 
-    state = sourceStateFolder.split('\\')[-1]
+    freeSpace = shutil.disk_usage(DEST_DRIVE).free
 
-    countyFolders = [ f.path for f in os.scandir(sourceStateFolder) if (f.is_dir() and 'County_Contours' in f.path and not 'Empty' in f.path) ]
+    completed = []
 
-    pool = ThreadPool(len(countyFolders))
-    pool.map(copyFolder, countyFolders)
+    if os.path.exists(f"{STATE_FOLDER}\\copy.log"):
+        with open(f"{STATE_FOLDER}\\copy.log", "r") as f:
+            for line in f.readlines():
+                completed.append(line.strip())
+
+    state = STATE_FOLDER.split('\\')[-1]
+    countyFolders = [ f.path for f in os.scandir(STATE_FOLDER) if (f.is_dir() and 'County_Contours' in f.path and not 'Empty' in f.path) ]
+
+    copyFolders = []
+    copySpace = 0
+    
+    for folder in countyFolders:
+        if folder in completed:
+            print(f"Skipping {folder} (already copied)")
+            continue
+        else:
+            folderSize = shutil.disk_usage(folder).used
+            if (folderSize + copySpace) < freeSpace:
+                copySpace += folderSize
+                copyFolders.append(folder)
+            else:
+                print(f"Will skip {folder} (not enough space)")
+
+    pool = ThreadPool(len(copyFolders))
+    pool.map(copyFolder, copyFolders)
     pool.close()
     pool.join()
 

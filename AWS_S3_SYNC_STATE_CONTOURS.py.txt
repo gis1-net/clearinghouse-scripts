@@ -10,10 +10,10 @@ def copyFolder(sourceFolder):
     state = folder.split('\\')[-2]
     destFolder = f"data/Contour_Lines/{state.lower()}/{folderName.lower().replace('_county_contours', '')}/GIS1"
 
-    os.system(f"aws s3 cp {sourceFolder}\\{folderName}_Index.geojson s3://storage.data.gis1.net/{destFolder}/index.json")
-    os.system(f"aws s3 sync {sourceFolder}\\Dwg_Files s3://storage.data.gis1.net/{destFolder}")
-    os.system(f"aws s3 sync {sourceFolder}\\Shapefiles s3://storage.data.gis1.net/{destFolder}")
-    
+    os.system(f"aws s3 cp {sourceFolder}\\{folderName}_Index.geojson s3://storage.data.gis1.net/{destFolder}/index.json --storage-class GLACIER_IR")
+    os.system(f"aws s3 sync {sourceFolder}\\Dwg_Files s3://storage.data.gis1.net/{destFolder} --storage-class GLACIER_IR")
+    os.system(f"aws s3 sync {sourceFolder}\\Shapefiles s3://storage.data.gis1.net/{destFolder} --storage-class GLACIER_IR")
+
 
 def main():
     sourceStateFolder = input("Enter the path to the state folder, including drive letter (e.g. W:\\SOUTH_CAROLINA): ")
