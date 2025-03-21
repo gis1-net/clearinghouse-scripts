@@ -21,13 +21,13 @@ def downloadTile(args):
 
   print(f"({i}/{len(URLS)}) Downloading {url}...")
 
-  retry = 3
+  retry = True
 
-  while retry > 0:
+  while retry:
     try: 
       urllib.request.urlretrieve(url, os.path.join(folder, parts[-1]))
+      retry = False
     except:
-      retry -= 1
       print(f"Download for {url} failed, retrying ({retry} more attempts)...")
 
 def main():
