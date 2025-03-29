@@ -1,7 +1,1 @@
-**/*.json
-**/*.geojson
-**/*.shapefile/**
 **/node_modules/**
-
-!**/package.json
-!**/package-lock.json
