@@ -1,0 +1,18 @@
+{
+  "name": "usgs_parser",
+  "version": "1.0.0",
+  "main": "parse.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@turf/turf": "^7.2.0",
+    "lodash": "^4.17.21",
+    "objects-to-csv": "^1.3.6",
+    "proj4": "^2.15.0",
+    "read-csv-sync": "^1.0.7"
+  }
+}
