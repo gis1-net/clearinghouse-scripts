@@ -2,7 +2,7 @@
 from multiprocessing.dummy import Pool as ThreadPool
 import subprocess
 
-NUM_THREADS = 96 * 3
+NUM_THREADS = 96 * 8
 
 def process(i):
   print(f'Processing {str(i)}')
