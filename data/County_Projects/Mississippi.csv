@@ -1,0 +1,107 @@
+NAME,SP_Zone,UTM_Zone,Projects,Month/Year Range,Tif Files in Co Folder/Mosaic Dataset,Complete Coverage Verified,Quality Level,Notes
+Adams,West,15,MS_NatchezTrace_2016,1/2016 - 1/2017,yes,yes2,QL2,Column3
+Alcorn,East,16,MS_Tishomingo_North_2016,1/2016 - 2/2016,yes,yes,0,
+Amite,West,15,MS_NatchezTrace_2016,1/2016 - 1/2017,yes,yes,,
+Attala,East,16,MS_Laurel_2014,1/2014 - 2/2015,yes,yes,,2 missing DEM tiles
+Benton,East,16,MS_MississippiDelta_A1_2018|MS_MississippiDelta_3_2018,2/2018 - 12/2020,yes,yes,,
+Benton2,East,16,MS_Tishomingo_North_2016,1/2016 - 2/2016,yes,yes,,
+Benton3,East,16,TN_3County_2015,12/2015 - 1/2016,yes,yes,,
+Bolivar,West,15,MS_MississippiDelta_A2_2018|MS_MississippiDelta_4_2018,1/2019 - 12/2020,yes,yes,,
+Calhoun,East,16,MS_MississippiDelta_A1_2018,2/2018 - 2/2019,yes,yes,,
+Carroll,West,16,MS_MississippiDelta_3_2018,2/2018 - 12/2020,yes,yes,,Has a small hole in the data check to see how it was handled
+Carroll2,West,16,MS_Laurel_2014,1/2014 - 2/2015,yes,yes,,
+Chickasaw,East,16,MS_NRCS_East_2_2018,12/2019 - 2/2020,yes,yes,,
+Choctaw,East,16,MS_NRCS_East_2_2018,12/2019 - 2/2020,yes,yes,,
+Choctaw2,East,16,MS_Laurel_2014,1/2014 - 2/2015,yes,yes,,
+Claiborne,West,15,MS_NatchezTrace_2016,1/2016 - 1/2017,yes,yes,,
+Clarke,East,16,MS_NRCS_LAUDERDALE_2013,1/2013 - 2/2013,yes,yes,,
+Clay,East,16,MS_NRCS_East_2_2018,12/2019 - 2/2020,yes,yes,,
+Coahoma,West,15,MS_MississippiDelta_A2_2018|MS_MississippiDelta_3_2018|MS_MississippiDelta_4_2018,2/2018 - 12/2020,yes,yes,,
+Copiah,West,15,MS_Coastal_Z15_2015,1/2015 - 4/2015,yes,yes,,
+Covington,East,16,MS_Tupelo_UTM16_2015,1/2015 - 3/2015,yes,yes,,
+Desoto,West,16,MS_MississippiDelta_A1_2018|MS_MississippiDelta_A2_2018|MS_MississippiDelta_4_2018,2/2018 - 12/2020,yes,yes,,DEMs from 2 UTM zones (Double Check Output Contours)
+Forrest,East,16,MS_Tishomingo_South_2016,1/2016 - 2/2016,yes,yes,,
+Franklin,West,15,MS_NatchezTrace_2016,1/2016 - 1/2017,yes,yes,,
+George (Empty),East,16,MS_Coastal_3DEPExt_Coastal_AOI_2015,1/2015 - 4/2015,NA,,,No QL2 1M data available
+Greene,East,16,MS_Tishomingo_South_2016,1/2016 - 2/2016,yes,yes,,
+Greene2,East,16,MS_Tupelo_UTM16_2015,1/2015 - 3/2015,yes,yes,,
+Grenada,West,16,MS_MississippiDelta_A1_2018|MS_MississippiDelta_A2_2018|MS_MississippiDelta_3_2018,2/2018 - 12/2020,yes,yes,,
+Gulf1 (Empty),East,16,LA_SoTerrebonne_GI_2015,1/2015 - 2/2015,NA,,,No QL2 1M data available
+Gulf2 (Empty),East,16,LA_SoTerrebonne_GI_2015,1/2015 - 2/2015,NA,,,No QL2 1M data available
+Gulf3 (Empty),East,16,LA_SoTerrebonne_GI_2015,1/2015 - 2/2015,NA,,,No QL2 1M data available
+Hancock (Empty),East,16,MS_Coastal_3DEPExt_Coastal_AOI_2015,1/2015 - 4/2015,NA,,,No QL2 1M data available
+Harrison (Empty),East,16,MS_Coastal_3DEPExt_Coastal_AOI_2015,1/2015 - 4/2015,NA,,,No QL2 1M data available
+Hinds,West,15,MS_NatchezTrace_2016,1/2016 - 1/2017,yes,yes,,
+Holmes,West,15,MS_MississippiDelta_A1_2018|MS_MississippiDelta_A2_2018,2/2018 - 2/2019,yes,yes,,
+Holmes2,West,15,MS_Laurel_2014,1/2014 - 2/2015,yes,yes,,
+Humphreys,West,15,MS_MississippiDelta_A2_2018|MS_MississippiDelta_3_2018,2/2018 - 12/2020,yes,yes,,
+Issaquena,West,15,MS_MississippiDelta_4_2018,6/2019 - 12/2020,yes,yes,,
+Itawamba,East,16,MS_NRCS_East_2_2018,12/2019 - 2/2020,yes,yes,,
+Itawamba2,East,16,MS_Tishomingo_North_2016,1/2016 - 2/2016,yes,yes,,
+Jackson (Empty),East,16,MS_Coastal_3DEPExt_Coastal_AOI_2015,1/2015 - 4/2015,NA,,,No QL2 1M data available
+Jasper,East,16,MS_Laurel_2014,1/2014 - 2/2015,yes,yes,,SE corner missing *31*353*
+Jefferson,West,15,MS_NatchezTrace_2016,1/2016 - 1/2017,yes,yes,,
+Jefferson_Davis,West,16,MS_Tupelo_UTM16_2015,1/2015 - 3/2015,yes,yes,,
+Jones,East,16,MS_Tupelo_UTM16_2015,1/2015 - 3/2015,yes,yes,,
+Kemper,East,16,MS_NRCS_East_2_2018,12/2019 - 2/2020,yes,yes,,
+Kemper2,East,16,MS_NRCS_LAUDERDALE_2013,1/2013 - 2/2013,yes,yes,,has big holes in the data
+Lafayette,East,16,MS_MississippiDelta_A1_2018|MS_MississippiDelta_3_2018,2/2018 - 12/2020,yes,yes,,
+Lamar,East,16,MS_Tishomingo_South_2016,1/2016 - 2/2016,yes,yes,,
+Lauderdale,East,16,MS_NRCS_LAUDERDALE_2013,1/2013 - 2/2013,yes,yes,,
+Lawrence,West,15,MS_Coastal_3DEP_Extension_UTM16_2015|MS_Tupelo_UTM15_2015|MS_Coastal_Z15_2015,1/2015 - 4/2015,yes,yes,,
+Leake,East,16,MS_Laurel_2014,1/2014 - 2/2015,yes,yes,,many missing tiles /holes that do not show on USGS website
+Lee,East,16,MS_NRCS_East_2_2018,12/2019 - 2/2020,yes,yes,,
+Lee2,East,16,MS_Tishomingo_North_2016,1/2016 - 2/2016,yes,yes,,
+Leflore,West,15,MS_MississippiDelta_A2_2018|MS_MississippiDelta_3_2018,2/2018 - 12/2020,yes,yes,,
+Lincoln,West,15,MS_Coastal_Z15_2015,1/2015 - 4/2015,yes,yes,,
+Lowndes,East,16,MS_NRCS_East_2_2018,12/2019 - 2/2020,yes,yes,,
+Lowndes2,East,16,MS_Tishomingo_North_2016,1/2016 - 2/2016,yes,yes,,
+Madison,West,15,MS_NRCS_East_1_2018|MS_NRCS_East_2_2018|MS_NRCS_East_3_2018|MS_NRCS_East_4_2018,12/2019 - 2/2020,yes,yes,,
+Marion,West,16,MS_Tupelo_UTM16_2015,1/2015 - 3/2015,yes,yes,,
+Marshall,East,16,MS_MississippiDelta_A1_2018,2/2018 - 2/2019,yes,yes,,
+Marshall2,East,16,MS_Tishomingo_North_2016,1/2016 - 2/2016,yes,yes,,
+Marshall3,East,16,TN_3County_2015,12/2015 - 1/2016,yes,yes,,
+Monroe,East,16,MS_NRCS_East_2_2018,12/2019 - 2/2020,yes,yes,,
+Monroe2,East,16,MS_Tishomingo_North_2016,1/2016 - 2/2016,yes,yes,,
+Montgomery,West,16,MS_Laurel_2014,1/2014 - 2/2015,yes,yes,,
+Neshoba,East,16,MS_NRCS_LAUDERDALE_2013,1/2013 - 2/2013,yes,yes,,has big holes in the data
+Newton,East,16,MS_NRCS_LAUDERDALE_2013,1/2013 - 2/2013,yes,yes,,has big holes in the data
+Noxubee,East,16,MS_NRCS_East_2_2018,12/2019 - 2/2020,yes,yes,,
+Oktibbeha,East,16,MS_NRCS_East_2_2018,12/2019 - 2/2020,yes,yes,,
+Panola,West,16,MS_MississippiDelta_A1_2018|MS_MississippiDelta_A2_2018|MS_MississippiDelta_4_2018,2/2018 - 12/2020,yes,yes,,
+Pearl_River (Empty),East,16,MS_Coastal_3DEPExt_Coastal_AOI_2015,1/2015 - 4/2015,NA,,,No QL2 1M data available
+Perry,East,16,MS_Tishomingo_South_2016,1/2016 - 2/2016,yrd,yes,,
+Perry2,East,16,MS_Tupelo_UTM16_2015,1/2015 - 3/2015,yes,yes,,
+Pike,West,15,MS_Coastal_Z15_2015,1/2015 - 4/2015,yes,yes,,
+Pontotoc,East,16,MS_MississippiDelta_A1_2018|MS_MississippiDelta_3_2018,2/2018 - 12/2020,yes,yes,,
+Prentiss,East,16,MS_Tishomingo_North_2016,1/2016 - 2/2016,yes,yes,,
+Quitman,West,15,MS_MississippiDelta_A2_2018|MS_MississippiDelta_3_2018|MS_MississippiDelta_4_2018,2/2018 - 12/2020,yes,yes,,
+Rankin,West,16,MS_NRCS_East_1_2018|MS_NRCS_East_2_2018|MS_NRCS_East_3_2018|MS_NRCS_East_4_2018,12/2019 - 2/2020,yes,yes,,
+Scott,East,16,MS_Laurel_2014,1/2014 - 2/2015,yes,yes,,
+Sharkey,West,15,MS_MississippiDelta_A2_2018|MS_MississippiDelta_3_2018|MS_MississippiDelta_4_2018,2/2018 - 12/2020,yes,yes,,
+Simpson,West,16,MS_NRCS_East_3_2018|MS_NRCS_East_4_2018,2/2020 - 1/2021,yes,yes,,
+Simpson2,West,16,MS_Coastal_Z15_2015|MS_Coastal_3DEP_Extension_UTM16_2015,1/2015 - 4/2015,yes,yes,,
+Smith,East,16,MS_Laurel_2014,1/2014 - 2/2015,yes,yes,,
+Stone (Empty),East,16,MS_Coastal_3DEPExt_Coastal_AOI_2015,1/2015 - 4/2015,NA,,,No QL2 1M data available
+Sunflower,West,15,MS_MississippiDelta_A2_2018|MS_MississippiDelta_3_2018,2/2018 - 12/2020,yes,yes,,
+Tallahatchie,West,15,MS_MississippiDelta_A2_2018|MS_MississippiDelta_3_2018,2/2018 - 12/2020,yes,yes,,
+Tate,West,16,MS_MississippiDelta_A1_2018|MS_MississippiDelta_A2_2018|MS_MississippiDelta_4_2018,2/2018 - 12/2020,yes,yes,,DEMs from 2 UTM zones (Double Check Output Contours)
+Tippah,East,16,MS_MississippiDelta_A1_2018,2/2018 - 2/2019,yes,yes,,
+Tippah2,East,16,MS_Tishomingo_North_2016,1/2016 - 2/2016,yes,yes,,
+Tippah3,East,16,TN_3County_2015,12/2015 - 1/2016,yes,yes,,
+Tishomingo,East,16,MS_Tishomingo_North_2016,1/2016 - 2/2016,yes,yes,,
+Tunica,West,15,MS_MississippiDelta_4_2018,6/2019 - 12/2020,yes,yes,,
+Union,East,16,MS_MississippiDelta_A1_2018|MS_MississippiDelta_3_2018,2/2018 - 12/2020,yes,yes,,
+Union2,East,16,MS_Tishomingo_North_2016,1/2016 - 2/2016,yes,yes,,
+Walthall,West,15,MS_Tupelo_UTM16_2015,1/2015 - 3/2015,yes,yes,,
+Warren,West,15,MS_MississippiDelta_4_2018,6/2019 - 12/2020,yes,yes,,
+Warren2,West,15,MS_NatchezTrace_2016,1/2016 - 1/2017,yes,yes,,
+Washington,West,15,MS_MississippiDelta_A2_2018|MS_MississippiDelta_4_2018,1/2019 - 12/2020,yes,yes,,
+Wayne,East,16,MS_Tupelo_UTM16_2015,1/2015 - 3/2015,yes,yes,,
+Webster,East,16,MS_NRCS_East_2_2018,12/2019 - 2/2020,yes,yes,,
+Webster2,East,16,MS_Laurel_2014,1/2014 - 2/2015,yes,yes,,
+Wilkinson,West,15,MS_NatchezTrace_2016,1/2016 - 1/2017,yes,yes,,
+Winston,East,16,MS_NRCS_East_2_2018,12/2019 - 2/2020,yes,yes,,
+Winston2,East,16,MS_NRCS_LAUDERDALE_2013,1/2013 - 2/2013,yes,yes,,Has a small hole in the data check to see how it was handled
+Yalobusha,West,16,MS_MississippiDelta_A1_2018,2/2018 - 2/2019,yes,yes,,
+Yazoo,West,15,MS_MississippiDelta_3_2018|MS_MississippiDelta_4_2018,2/2018 - 12/2020,yes,yes,,
