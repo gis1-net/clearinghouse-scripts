@@ -41,10 +41,10 @@ def main():
   projects = []
   usgs1mProjects = []
 
-  with open('County_Projects.json') as file:
+  with open('../../data/County_Lidar_Project_Properties.json') as file:
     projects = json.load(file)
 
-  with open('USGS_1m_Projects.json') as file:
+  with open('../../data/USGS_1m_Projects.json') as file:
     usgs1mProjects = json.load(file)
 
   stateProjects = set([])

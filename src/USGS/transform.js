@@ -9,7 +9,7 @@ const main = async () => {
   const transformedFeatures = []
 
   for (let feature of features.features) {
-    console.log('Transforming feature', feature.attributes.OBJECTID)
+    console.log('Transforming feature', feature.properties.OBJECTID)
     const transformedFeature = {
       ...feature,
       geometry: {
@@ -20,7 +20,7 @@ const main = async () => {
       }
     }
 
-    // console.log(new Date(feature.attributes.collect_start))
+    // console.log(new Date(feature.properties.collect_start))
 
     // console.log(transformedFeature)
 

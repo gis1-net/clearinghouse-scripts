@@ -1,4 +1,4 @@
-const countyProjects = require('./County_Projects.json')
+const countyProjects = require('#data/County_Lidar_Project_Properties.json')
 const fs = require('fs')
 
 const main = async () => {
@@ -12,7 +12,7 @@ const main = async () => {
     })
   }
 
-  fs.writeFileSync('County_Projects_New.json', JSON.stringify(newCountyProjects, null, 2))
+  fs.writeFileSync('../../data/County_Lidar_Project_Properties.json', JSON.stringify(newCountyProjects, null, 2))
 }
 
 main()
