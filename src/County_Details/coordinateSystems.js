@@ -19,6 +19,7 @@ const main = async () => {
 
         delete data.properties.SPCS_ID
 
+        data.properties.FULL_NAME = `${county.properties.NAME}_${county.properties.LSAD}`.replaceAll(' ', '_')
         data.properties.SPCS_AUTH = spcs.id.authority,
         data.properties.SPCS_ID = spcs.id.code,
         data.properties.UTMCS_AUTH = utmcs.id.authority,
