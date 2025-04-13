@@ -6,7 +6,7 @@ NUM_THREADS = 96
 
 def process(i):
   print(f'Processing {str(i)}')
-  subprocess.run(["node", "sort.js", str(i)])
+  subprocess.run(["node", "Copy_DEMs_To_County_Tif_Files_UTM_Folder.js", str(i)])
 
 def main():
     pool = ThreadPool(NUM_THREADS)
