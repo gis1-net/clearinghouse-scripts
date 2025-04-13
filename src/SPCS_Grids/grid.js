@@ -1,6 +1,6 @@
 const spcsZones = require('#data/SPCS_Zones.json')
 const proj4 = require('proj4')
-const { addDefs } = require('#data/Coordinate_Systems/defs.js')
+const { addDefs } = require('#data/Coordinate_Systems/proj4Defs.js')
 const { keyBy } = require('lodash')
 const turf = require('@turf/turf')
 const fs = require('fs')

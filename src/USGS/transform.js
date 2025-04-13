@@ -1,5 +1,5 @@
 const proj4 = require('proj4')
-const defs = require('./defs.json')
+const defs = require('./proj4Defs.json')
 const features = require('./project_features.json')
 const fs = require('fs')
 

@@ -1,7 +1,7 @@
 const coordinateSystems = require('../EPSG/coordinate_systems')
 const utmZones = require('./UTM_Zones')
 const proj4 = require('proj4')
-const { addDefs } = require('../EPSG/defs.js')
+const { addDefs } = require('../EPSG/proj4Defs.js')
 const fs = require('fs')
 const turf = require('@turf/turf')
 
