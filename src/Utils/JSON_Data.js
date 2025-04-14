@@ -1,6 +1,6 @@
 const fs = require('fs')
 
-const readJsonData = (path) => JSON.parse(fs.readFileSync(`../../data/${path}`))
+const readJsonData = (path) => JSON.parse(fs.readFileSync(`${__dirname}/../../data/${path}`))
 
 const writeJsonData = (path, data, minify = false) => {
   const parts = path.split('/')
@@ -12,7 +12,7 @@ const writeJsonData = (path, data, minify = false) => {
   }
 
   console.log(`Writing data/${path}`)
-  fs.writeFileSync(`../../data/${path}`, JSON.stringify(data, minify ? undefined : null, minify ? undefined : 2))
+  fs.writeFileSync(`${__dirname}/../../data/${path}`, JSON.stringify(data, minify ? undefined : null, minify ? undefined : 2))
 }
 
 module.exports = { readJsonData, writeJsonData }

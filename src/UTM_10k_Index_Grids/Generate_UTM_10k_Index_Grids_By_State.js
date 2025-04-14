@@ -1,55 +1,41 @@
-const utmZones = require('./UTM_Zones.json')
-const counties = require('../SPCS_Grids/US_Counties_Detailed.json')
-const { execSync } = require('child_process');
-const { groupBy } = require('lodash')
+const { readJsonData, writeJsonData } = require('#src/Utils/JSON_Data.js')
 const turf = require('@turf/turf')
 const fs = require('fs')
+const { groupBy } = require('lodash')
 
-const main = async () => {
-  const grouped = {}
+const counties = readJsonData('US_County_Details_And_Boundaries.geojson')
 
-  for (let county of counties.features) {
-    console.log(`Processing ${county.properties.NAME}, ${county.properties.STATE}`)
-    if (!(county.properties.STATE in grouped)) {
-      grouped[county.properties.STATE] = {}
-    }
+const main = async (i) => {
+  const groupedByState = groupBy(counties.features, c => c.properties.STATE)
 
-    if (!(county.properties.UTM_ZONE in grouped[county.properties.STATE])) {
-      grouped[county.properties.STATE][county.properties.UTM_ZONE] = county.geometry
-    } else {
-      const fc = turf.featureCollection([
-        turf.feature(grouped[county.properties.STATE][county.properties.UTM_ZONE]), 
-        turf.feature(county.geometry)
-      ])
-      const union = turf.union(fc)
-      grouped[county.properties.STATE][county.properties.UTM_ZONE] = union.geometry
-    }
-  }
+  const state = Object.keys(groupedByState)[i]
+  const stateGroup = groupedByState[state]
 
-  for (let state in grouped) {
+  const groupedByZone = groupBy(stateGroup, c => c.properties.UTM_ZONE)
+
+  for (let zone in groupedByZone) {
     const features = []
 
-    for (let zone in grouped[state]) {
-      const feature = {
-        type: 'Feature',
-        properties: {
-          STATE: state,
-          UTM_ZONE: zone
-        },
-        geometry: grouped[state][zone]
+    const utmTiles = readJsonData(`UTM_10k_Index_Grids/${zone}.geojson`)
+
+    const area = groupedByZone[zone].length > 1 
+      ? turf.union(turf.featureCollection(groupedByZone[zone].map(c => turf.feature(c.geometry))))
+      : turf.feature(groupedByZone[zone][0].geometry)
+    const areaBuffer = turf.buffer(area, .3, { units: "kilometers" })
+
+    for (let tile of utmTiles.features) {
+      console.log(`Checking ${state} UTM Zone ${zone} tile: ${tile.properties.Name_X}, ${tile.properties.Name_Y}`)
+      if (turf.booleanIntersects(areaBuffer, tile.geometry)) {
+        features.push(tile)
       }
-
-
-      console.log(`Writing ./SP_UTM_Grids/${state}/${zone}.geojson`)
-  
-      fs.mkdirSync(`./SP_UTM_Grids/${state}`, { recursive: true })
-      fs.writeFileSync(`./SP_UTM_Grids/${state}/${zone}.geojson`, JSON.stringify({ type: 'FeatureCollection', features: [feature] }, null, 2))
     }
+
+    writeJsonData(`UTM_10k_Index_Grids_By_State/${state}/${state}_UTM_Zone_${zone}_10k_Index_Grid.geojson`, { type: 'FeatureCollection', features })
   }
 }
 
 if (require.main === module) {
-  main()
+  main(process.argv[2])
 }
 
 module.exports = main

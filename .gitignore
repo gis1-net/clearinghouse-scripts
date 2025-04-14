@@ -2,3 +2,4 @@
 **/*.shapefile/**
 *.log
 *.zip
+data/**
