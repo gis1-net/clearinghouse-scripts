@@ -48,20 +48,24 @@ const main = async (numThreads, state) => {
     }
   }
 
-  const downloads = []
+  const downloadUrls = new Set()
+
+  console.log('Building download list...')
 
   for (let project of stateProjects) {
     if (!fs.existsSync(`/mnt/z/${state.toUpperCase().replaceAll(' ', '_')}_NICKs/Tif_Files_UTM/${project}/`)) {
       fs.mkdirSync(`/mnt/z/${state.toUpperCase().replaceAll(' ', '_')}_NICKs/Tif_Files_UTM/${project}/`, { recursive: true })
     }
 
-    const file = fs.readFileSync(`../../data/DEM_Download_Lists/${project}.txt`)
+    const file = fs.readFileSync(`../../data/DEM_Download_Lists/${project}.txt`, 'utf-8')
     const lines = file.split('\n')
 
     for (let line of lines) {
-      downloads.push({ url: line, project })
+      downloadUrls.add({ url: line, project })
     }
   }
+
+  const downloads = Array.from(downloadUrls)
 
   for (let i = 0; i < downloads.length; i++) {
     const download = downloads[i]
@@ -75,6 +79,8 @@ const main = async (numThreads, state) => {
       count: downloads.length
     })
   }
+
+  console.log(`Found ${downloads.length} urls to download. Starting on ${numThreads} threads.`)
 
   for (let i = 0; i < numThreads; i++) {
     workerPromises.push(createWorker(i))

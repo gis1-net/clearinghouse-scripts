@@ -46,8 +46,8 @@ const main = async (numThreads, state) => {
   for (let state in stateGroups) {
     writeJsonData(`DEM_Allocation/${state.replaceAll(' ', '_')}.json`, stateGroups[state])
 
-    const csv = new ObjectsToCsv(stateGroups[state])
-    await csv.toDisk(`../../data/DEM_Allocation/${state.replaceAll(' ', '_')}.csv`)
+    // const csv = new ObjectsToCsv(stateGroups[state])
+    // await csv.toDisk(`../../data/DEM_Allocation/${state.replaceAll(' ', '_')}.csv`)
   }
 }
 

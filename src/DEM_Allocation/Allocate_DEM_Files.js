@@ -5,15 +5,22 @@ const { buildCombos, isStrictSuperset, dedupeSupersets } = require('./Combo_Buil
 const { analyzeCoverage } = require('./Coverage_Analyzer')
 
 const counties = readJsonData('US_County_Details_And_Boundaries.geojson')
+const usgs1mProjects = readJsonData('USGS_1m_Projects_List.json')
 
 /** Minimum year for data to be considered "recent" - recent data is preferred over old data */
-const RECENT_MIN_YEAR = 2014
+const RECENT_MIN_YEAR = 1970
 
 /** Minimum fraction of the county's area that must be covered by a recent project for that project to be automatically used */
-const RECENT_AUTOMATIC_USE_MINIMUM_COVERAGE = 0
+const RECENT_AUTOMATIC_USE_MINIMUM_COVERAGE = 0.1
 
 /** Minimum fraction of the county's area that must be covered to consider full coverage */
-const FULL_COVERAGE_MINIMUM = 0.9999
+const FULL_COVERAGE_MINIMUM = 0.999
+
+/** Minimum fraction of the county's area that must be covered to consider the project significant for metadata purposes */
+const SIGNIFICANT_COVERAGE_MINIMUM = 0.05
+
+/** Maximum age gap between two projects to consider combining them into a single set of tiles */
+const MAXIMUM_COMBINABLE_AGE_GAP_DAYS = 365 / 2
 
 const main = (index, silent = false) => {
   const county = counties.features[index]
@@ -103,6 +110,80 @@ const main = (index, silent = false) => {
     }
   }
 
+  /** Always assume the first project set is correct */
+  let useProjects = output['projects_1'].split('|')
+
+  const groups = []
+  const insignificantOrphans = []
+
+  while (useProjects.length > 0) {
+    const projectKey = useProjects[0]
+    const project = countyProjects[projectKey]
+
+    const coverage = analyzeCoverage(county, project)
+
+    if (coverage >= SIGNIFICANT_COVERAGE_MINIMUM) {
+      const newGroup = [projectKey]
+
+      for (let i = useProjects.length - 1; i > 0; i--) {
+        const currentProjectKey = useProjects[i]
+        const currentProject = countyProjects[currentProjectKey]
+
+        const hasSameParent = currentProject.properties.project_id === project.properties.project_id
+        const hasSimilarAge = (Math.abs(currentProject.properties.collect_end - project.properties.collect_end) / (1000 * 60 * 60 * 24)) <= MAXIMUM_COMBINABLE_AGE_GAP_DAYS
+
+        const shouldCombine = hasSameParent || hasSimilarAge
+
+        if (shouldCombine) {
+          newGroup.push(currentProjectKey)
+          useProjects = useProjects.splice(i, 1)
+        }
+      }
+
+      groups.push(newGroup)
+    } else {
+      insignificantOrphans.push(projectKey)
+    }
+  }
+
+  for (let orphan of insignificantOrphans) {
+    let mostIntersect = 0
+    let bestGroup = null
+
+    for (let i = 0; i < groups.length; i++) {
+      const group = groups[i]
+      const groupGeometry = turf.union(turf.featureCollection(group.map(p => turf.feature(countyProjects[p]).geometry)))
+      const intersect = turf.intersect(turf.featureCollection([turf.feature(countyProjects[orphan]).geometry, groupGeometry]))
+      const area = turf.area(intersect)
+
+      if (area > mostIntersect) {
+        bestGroup = group
+      }
+    }
+
+    if (bestGroup === null) {
+      let closestTime = Infinity
+
+      for (let i = 0; i < groups.length; i++) {
+        const group = groups[i]
+
+        for (let j = 0; j < group.length; j++) {
+          const project = countyProjects[group[j]]
+
+          const diff = Math.abs(project.properties.collect_end - countyProjects[orphan].properties.collect_end)
+          if (diff < closestTime) {
+            closestTime = diff
+            bestGroup = i
+          }
+        }
+      }
+    }
+
+    groups[bestGroup].push(orphan)
+  }
+
+  output.groups = groups
+  
   return output
 }
 

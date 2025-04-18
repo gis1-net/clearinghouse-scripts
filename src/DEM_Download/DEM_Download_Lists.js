@@ -5,7 +5,7 @@ const LidarProjects = readJsonData('Lidar_Project_Boundaries.geojson')
 const main = async () => {
   for (let project of LidarProjects.features) {
     if (project.properties.sourcedem_link) {
-      const url = `${project.properties.sourcedem_link}/0_file_download_links.txt`
+      const url = `${project.properties.sourcedem_link}/0_file_download_links.txt`.replace('index.html?prefix=', '')
 
       console.log(`Fetching ${url}`)
       
