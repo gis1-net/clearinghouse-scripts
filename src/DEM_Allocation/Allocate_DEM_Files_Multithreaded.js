@@ -1,6 +1,8 @@
 const { readJsonData, writeJsonData } = require('#src/Utils/JSON_Data.js')
 const { groupBy } = require('lodash')
 const { Worker } = require("worker_threads");
+const counties = readJsonData('US_County_Details_And_Boundaries.geojson')
+const ObjectsToCsv = require('objects-to-csv');
 
 const jobs = []
 const data = []
@@ -25,10 +27,11 @@ const createWorker = async () => {
   }
 }
 
-const main = async (numThreads) => {
+const main = async (numThreads, state) => {
   const workerPromises = []
 
   for (let i = 0; i < 3143; i++) {
+    if (counties.features[i].properties.STATE === state.replaceAll('_', ' '))
     jobs.push(i)
   }
 
@@ -42,7 +45,10 @@ const main = async (numThreads) => {
 
   for (let state in stateGroups) {
     writeJsonData(`DEM_Allocation/${state.replaceAll(' ', '_')}.json`, stateGroups[state])
+
+    const csv = new ObjectsToCsv(stateGroups[state])
+    await csv.toDisk(`../../data/DEM_Allocation/${state.replaceAll(' ', '_')}.csv`)
   }
 }
 
-main(process.argv[2])
+main(...process.argv.slice(2))

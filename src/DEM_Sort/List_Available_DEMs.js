@@ -1,15 +1,14 @@
 const fs = require('fs')
 
-const listAvailableDems = async (state) => {
+const listAvailableDems = async (projects) => {
   const pattern = /x[\d]{2}y[\d]{3}/g
 
-  const dir = `${__dirname}/../../data/DEM_List/${state}`
-  const files = fs.readdirSync(dir)
+  const dir = `${__dirname}/../../data/DEM_Download_Lists/${state}`
 
   const tiles = []
 
-  for (let file of files) {
-    const contents = fs.readFileSync(`${dir}/${file}`).toString()
+  for (let project of projects) {
+    const contents = fs.readFileSync(`${dir}/${project}.txt`).toString()
 
     const lines = contents.split('\n')
 

@@ -90,7 +90,12 @@ const main = (index, silent = false) => {
   } else {
     output.full_coverage = false
 
-    const ordered = orderBy(partialCoverageCombos, [s => s.coverage, s => s.projects.length], ['desc', 'asc'])
+    const ordered = orderBy(partialCoverageCombos, [
+        s => s.coverage, 
+        s => Math.max(...s.projects.map(p => p.project.properties.collect_end))
+      ], 
+      ['desc', 'desc']
+    )
 
     for (let i = 0; i < Math.min(3, ordered.length); i++) {
       output[`projects_${i + 1}`] = ordered[i].projects.map(p => p.project.properties.workunit).join('|')
