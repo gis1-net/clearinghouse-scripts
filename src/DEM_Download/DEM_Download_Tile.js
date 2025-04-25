@@ -28,7 +28,7 @@ const main = async (url, path, i = 1, count = 1) => {
 }
 
 if (require.main === module) {
-  main(process.argv.slice(2))
+  main(...process.argv.slice(2))
 }
 
 module.exports = main

@@ -5,13 +5,17 @@ const LidarProjects = readJsonData('Lidar_Project_Boundaries.geojson')
 const main = async () => {
   for (let project of LidarProjects.features) {
     if (project.properties.sourcedem_link) {
-      const url = `${project.properties.sourcedem_link}/0_file_download_links.txt`.replace('index.html?prefix=', '')
+      const contents = fs.readFileSync(`../../data/DEM_Download_Lists/${project.properties.workunit}.txt`, 'utf-8')
 
-      console.log(`Fetching ${url}`)
-      
-      const response = await fetch(url)
+      if (contents.startsWith('<?xml')) {
+        const url = `${project.properties.sourcedem_link.replaceAll('index.html?prefix=', '')}/0_file_download_links.txt`
 
-      fs.writeFileSync(`../../data/DEM_Download_Lists/${project.properties.workunit}.txt`, await response.text())
+        console.log(`Fetching ${url}`)
+        
+        const response = await fetch(url)
+
+        fs.writeFileSync(`../../data/DEM_Download_Lists/${project.properties.workunit}.txt`, await response.text())
+      }
     }
   }
 }
