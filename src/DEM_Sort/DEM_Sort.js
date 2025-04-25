@@ -1,52 +1,37 @@
 const fs = require('fs')
 const { readCSVSync } = require("read-csv-sync")
 const { listAvailableDems } = require('./List_Available_DEMs')
+const { readJsonData } = require('#src/Utils/JSON_Data')
+const countyBoundaries = readJsonData('US_County_Details_And_Boundaries.geojson')
+const turf = require('@turf/turf')
 
-const STATE_FOLDER = 'VIRGINIA'
-const STATE = 'Virginia'
+const STATE_FOLDER = ''
 
 const log = (message) => {
     console.log(message)
     fs.appendFileSync(`/mnt/z/${STATE_FOLDER}/DEM_COPY.log`, message)
 }
 
-const main = async (i, count) => {
-    const counties = readCSVSync('../../data/DEM_Allocation/Virginia.csv')
+const main = async (state, i, count) => {
+    STATE_FOLDER = state.toUpperCase()
+    const counties = readCSVSync(`../../data/DEM_Allocation/${state}.csv`)
 
     const county = counties[i]
-
-    const demTiles = []
+    const countyBoundary = countyBoundaries.find(c => c.properties.NAME === county.NAME && c.properties.LSAD === county.LSAD && c.properties.STATE === county.STATE)
+    const countyBoundaryBuffer = turf.buffer(countyBoundary.geometry, 0.3, { units: 'kilometers' })
 
     for (let project of county.projects.split('|')) {
-        const projectTiles = listAvailableDems(STATE, project)
-        demTiles.push(...projectTiles)
-    }
+        const tileGrid = readJsonData(`Lidar_Project_Grids/${project}.geojson`)
 
-    log(`(${i}/${count}) Checking ${county.properties.NAME}`)
-    const countyTiles = require(`#data/County_UTM_Grids/${county.properties.STATE}/${county.properties.NAME}_${county.properties.LSAD}.json`)
-
-    for (let tile of countyTiles.features) {
-        const matches = demTiles.filter(t => t.x === parseInt(tile.properties.Name_X) && t.y === parseInt(tile.properties.Name_Y))
-
-        if (matches.length === 0) {
-            const error = `[${county.properties.NAME}] X: ${tile.properties.Name_X}, Y: ${tile.properties.Name_Y} FOUND 0 MATCHES`
-            log(error)
-        } else if (matches.length > 1) {
-            const error = `[${county.properties.NAME}] X: ${tile.properties.Name_X}, Y: ${tile.properties.Name_Y} FOUND ${matches.length} MATCHES`
-            log(error)
-        }
-
-        const destFolder = `/mnt/z/${STATE_FOLDER}/${county.properties.NAME.replaceAll(' ', '_')}_${county.properties.LSAD.replaceAll(' ', '_')}_Contours/Tif_Files_UTM`
-
-        if (!fs.existsSync(destFolder)) {
-            fs.mkdirSync(destFolder, { recursive: true })
-        }
-
-        for (let match of matches) {
-            const fileNameParts = match.url.split('/')
-            const fileName = fileNameParts[fileNameParts.length - 1]
-            log(`Copying /mnt/z/${STATE_FOLDER}_NICKs/Tif_Files_UTM/${match.project}/${fileName} -> ${destFolder}/${fileName}`)
-            fs.copyFileSync(`/mnt/z/${STATE_FOLDER}_NICKs/Tif_Files_UTM/${match.project}/${fileName}`, `${destFolder}/${fileName}`)
+        for (let tile of tileGrid.features) {
+            if (turf.booleanIntersects(tile.geometry, countyBoundaryBuffer.geometry)) {
+                if (fs.existsSync(`/mnt/z/${STATE_FOLDER}_NICKs/Tif_Files_UTM/${project}/${tile.TILE_NAME}`)) {
+                    log(`Copying /mnt/z/${STATE_FOLDER}_NICKs/Tif_Files_UTM/${project}/${tile.TILE_NAME} -> ${destFolder}/${tile.TILE_NAME}`)
+                    fs.copyFileSync(`/mnt/z/${STATE_FOLDER}_NICKs/Tif_Files_UTM/${project}/${tile.TILE_NAME}`, `${destFolder}/${tile.TILE_NAME}`)
+                } else {
+                    log(`No file found for /mnt/z/${STATE_FOLDER}_NICKs/Tif_Files_UTM/${project}/${tile.TILE_NAME}`)
+                }
+            }
         }
     }
 }

@@ -27,7 +27,7 @@ const main = async (numThreads, state) => {
   const data = readJsonData(`DEM_Allocation/${state}.json`)
 
   for (let i = 0; i < data.length; i++) {
-    jobs.push({ index: i, stateFolder: state })
+    jobs.push({ state, index: i, count: data.length })
   }
 
   for (let i = 0; i < numThreads; i++) {
