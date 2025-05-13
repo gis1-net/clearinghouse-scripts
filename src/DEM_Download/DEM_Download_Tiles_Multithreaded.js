@@ -53,8 +53,8 @@ const main = async (numThreads, state) => {
   console.log('Building download list...')
 
   for (let project of stateProjects) {
-    if (!fs.existsSync(`/mnt/z/${state.toUpperCase().replaceAll(' ', '_')}_NICKs/Tif_Files_UTM/${project}/`)) {
-      fs.mkdirSync(`/mnt/z/${state.toUpperCase().replaceAll(' ', '_')}_NICKs/Tif_Files_UTM/${project}/`, { recursive: true })
+    if (!fs.existsSync(`/mnt/z/${state.toUpperCase().replaceAll(' ', '_')}/Tif_Files_UTM/${project}/`)) {
+      fs.mkdirSync(`/mnt/z/${state.toUpperCase().replaceAll(' ', '_')}/Tif_Files_UTM/${project}/`, { recursive: true })
     }
 
     const file = fs.readFileSync(`../../data/DEM_Download_Lists/${project}.txt`, 'utf-8')
@@ -74,7 +74,7 @@ const main = async (numThreads, state) => {
 
     jobs.push({ 
       url: download.url, 
-      path: `/mnt/z/${state.toUpperCase().replaceAll(' ', '_')}_NICKs/Tif_Files_UTM/${download.project}/${fileName}`,
+      path: `/mnt/z/${state.toUpperCase().replaceAll(' ', '_')}/Tif_Files_UTM/${download.project}/${fileName}`,
       i,
       count: downloads.length
     })
@@ -88,13 +88,15 @@ const main = async (numThreads, state) => {
 
   await Promise.all(workerPromises)
 
-  const stateGroups = groupBy(data, d => d.state)
+  const stateGroups = groupBy(data, d => d?.state)
 
   for (let state in stateGroups) {
-    writeJsonData(`DEM_Allocation/${state.replaceAll(' ', '_')}.json`, stateGroups[state])
+    if (state && stateGroups[state]) {
+      writeJsonData(`DEM_Allocation/${state.replaceAll(' ', '_')}.json`, stateGroups[state])
 
-    const csv = new ObjectsToCsv(stateGroups[state])
-    await csv.toDisk(`../../data/DEM_Allocation/${state.replaceAll(' ', '_')}.csv`)
+      const csv = new ObjectsToCsv(stateGroups[state])
+      await csv.toDisk(`../../data/DEM_Allocation/${state.replaceAll(' ', '_')}.csv`)
+    }
   }
 }
 

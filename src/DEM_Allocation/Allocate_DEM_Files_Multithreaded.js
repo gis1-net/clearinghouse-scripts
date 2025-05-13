@@ -46,8 +46,22 @@ const main = async (numThreads, state) => {
   for (let state in stateGroups) {
     writeJsonData(`DEM_Allocation/${state.replaceAll(' ', '_')}.json`, stateGroups[state])
 
-    // const csv = new ObjectsToCsv(stateGroups[state])
-    // await csv.toDisk(`../../data/DEM_Allocation/${state.replaceAll(' ', '_')}.csv`)
+    const csvData = []
+
+    for (let county of stateGroups[state]) {
+      for (let group of county.groups) {
+        csvData.push({
+          name: county.name,
+          lsad: county.lsad,
+          state: county.state,
+          projects: group.join('|')
+        })
+      }
+    }
+
+    console.log(`Writing DEM_Allocation/${state.replaceAll(' ', '_')}.csv`)
+    const csv = new ObjectsToCsv(csvData)
+    await csv.toDisk(`../../data/DEM_Allocation/${state.replaceAll(' ', '_')}.csv`)
   }
 }
 

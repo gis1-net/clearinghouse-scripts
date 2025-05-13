@@ -19,8 +19,9 @@ const FULL_COVERAGE_MINIMUM = 0.999
 /** Minimum fraction of the county's area that must be covered to consider the project significant for metadata purposes */
 const SIGNIFICANT_COVERAGE_MINIMUM = 0.05
 
-/** Maximum age gap between two projects to consider combining them into a single set of tiles */
-const MAXIMUM_COMBINABLE_AGE_GAP_DAYS = 365 / 2
+/** The percentage of the difference between today's date and the collection date of a lidar project to use as the maximum difference between projects for combination */
+/** In other words, the older a project is, the further apart in time two projects can be to consider combining them */
+const COMBINABLE_AGE_GAP_PERCENTAGE = 0.2
 
 const main = (index, silent = false) => {
   const county = counties.features[index]
@@ -113,6 +114,10 @@ const main = (index, silent = false) => {
   /** Always assume the first project set is correct */
   let useProjects = output['projects_1'].split('|')
 
+  if (!silent) {
+    console.log('USEPROJECTS', useProjects)
+  }
+
   const groups = []
   const insignificantOrphans = []
 
@@ -123,25 +128,47 @@ const main = (index, silent = false) => {
     const coverage = analyzeCoverage(county, project)
 
     if (coverage >= SIGNIFICANT_COVERAGE_MINIMUM) {
-      const newGroup = [projectKey]
+      const newGroup = [useProjects.shift()]
+      if (!silent) {
+        console.log('STARTING GROUP', newGroup)
+      }
 
-      for (let i = useProjects.length - 1; i > 0; i--) {
+      for (let i = useProjects.length - 1; i >= 0; i--) {
         const currentProjectKey = useProjects[i]
         const currentProject = countyProjects[currentProjectKey]
 
+        const oldestDate = Math.min(currentProject.properties.collect_start, project.properties.collect_start)
+        const maximumCombinableAgeGapDays = COMBINABLE_AGE_GAP_PERCENTAGE * (new Date() - new Date(oldestDate)) / (1000 * 60 * 60 * 24)
+
         const hasSameParent = currentProject.properties.project_id === project.properties.project_id
-        const hasSimilarAge = (Math.abs(currentProject.properties.collect_end - project.properties.collect_end) / (1000 * 60 * 60 * 24)) <= MAXIMUM_COMBINABLE_AGE_GAP_DAYS
+        const hasSimilarAge = (
+          (Math.abs(currentProject.properties.collect_end - project.properties.collect_start) / (1000 * 60 * 60 * 24)) <= maximumCombinableAgeGapDays
+          || (Math.abs(project.properties.collect_end - currentProject.properties.collect_start) / (1000 * 60 * 60 * 24)) <= maximumCombinableAgeGapDays
+          || (currentProject.properties.collect_start <= project.properties.collect_end && project.properties.collect_start <= currentProject.properties.collect_end)
+        )
 
         const shouldCombine = hasSameParent || hasSimilarAge
 
         if (shouldCombine) {
+          if (!silent) {
+            console.log('ADDING TO GROUP', currentProjectKey)
+          }
           newGroup.push(currentProjectKey)
-          useProjects = useProjects.splice(i, 1)
+          useProjects.splice(i, 1)
+          if (!silent) {
+            console.log('SPLICED USEPROJECTS', useProjects)
+          }
         }
       }
 
+      if (!silent) {
+        console.log('ADDING GROUP', newGroup)
+      }
       groups.push(newGroup)
     } else {
+      if (!silent) {
+        console.log('ADDING ORPHAN', projectKey)
+      }
       insignificantOrphans.push(projectKey)
     }
   }
@@ -183,7 +210,7 @@ const main = (index, silent = false) => {
   }
 
   output.groups = groups
-  
+
   return output
 }
 
