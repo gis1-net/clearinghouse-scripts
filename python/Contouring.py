@@ -3,7 +3,7 @@ Script Name: Contour Processing Script
 Created by: Nick Rupert, Chad Rupert, and Juan Machado - GIS1.net
 Date: September 5, 2025
 
-Notes: Make sure you run it from the location of ESRI ArcPy needed:
+To run:
     python Z:\Clearinghouse_Support\python\Contouring.py
                   
 Description:
@@ -123,7 +123,7 @@ STEPS = [
     'index_project_sp',
     'index_intersect',
     'index_dissolve',
-    'index_clip_boundary',
+    'index_clip',
     'index_cleanup_data_fields',
     'index_project_wgs84',
     'index_export_geojson',
@@ -388,6 +388,8 @@ def contouring_remove_legacy_files():
     Delete all previous Legacy, Work-In-Progress, and Output files related to contour lines from previous executions
     """
 
+    log(f"STEP {STEPS.index('contouring_remove_legacy_files')}. contouring_remove_legacy_files")
+
     # Delete legacy Geodatabases if any
     work_in_progress_geodatabase = os.path.join(BASE_DIR, "Contours_Work_In_Progress.gdb")
     log(f"Deleting previous work_in_progress geodatabase, if any: {work_in_progress_geodatabase}")
@@ -408,6 +410,8 @@ def contouring_remove_legacy_files():
 def contouring_compact_wip_geodatabase():
     """Compact the contours geodatabase"""
 
+    log(f"STEP {STEPS.index('contouring_compact_wip_geodatabase')}. contouring_compact_wip_geodatabase")
+
     # Intermediate compaction of the county contours geodatabase
     # (This geodatabase is reused later for exporting and further processing)
     contours_wip_geodatabase = os.path.join(BASE_DIR, CONTOURS_WIP_GEODATABASE)
@@ -417,6 +421,8 @@ def contouring_compact_wip_geodatabase():
 
 def contouring_set_tif_nodata_values():
     """Set standard NoData value for all .tif files"""
+
+    log(f"STEP {STEPS.index('contouring_set_tif_nodata_values')}. contouring_set_tif_nodata_values")
 
     tif_files_dir = os.path.join(BASE_DIR, TIF_FILES)
     tif_files = os.listdir(tif_files_dir)
@@ -429,6 +435,8 @@ def contouring_set_tif_nodata_values():
 
 def contouring_create_wip_geodatabase():
     """Create Contours WIP Geodatabase"""
+
+    log(f"STEP {STEPS.index('contouring_create_wip_geodatabase')}. contouring_create_wip_geodatabase")
 
     contours_wip_geodatabase = os.path.join(BASE_DIR, CONTOURS_WIP_GEODATABASE)
 
@@ -443,6 +451,8 @@ def contouring_create_wip_geodatabase():
 
 def contouring_create_mosaic_dataset(mosaic_dataset):
     """Create mosaic dataset from Tif Files"""
+    
+    log(f"STEP {STEPS.index('contouring_create_mosaic_dataset')}. contouring_create_mosaic_dataset")
 
     # Delete old mosaic dataset, if exists
     log(f"Deleting old mosaic dataset, if any: {mosaic_dataset}")
@@ -470,6 +480,8 @@ def contouring_create_mosaic_dataset(mosaic_dataset):
 def contouring_calculate_raster_statistics(input_path):
     """Calculate raster statistics on mosaic dataset"""
 
+    log(f"STEP {STEPS.index('contouring_calculate_raster_statistics')}. contouring_calculate_raster_statistics")
+
     # Set this to ZERO so LocalWorker.exe doesn't go crazy
     arcpy.env.parallelProcessingFactor = 0
     log(f"Environment parallelProcessingFactor set to 0.")
@@ -484,6 +496,8 @@ def contouring_calculate_raster_statistics(input_path):
 
 def contouring_generate(input_path, output_path):
     """Generate contour lines from mosaic dataset"""
+
+    log(f"STEP {STEPS.index('contouring_generate')}. contouring_generate")
 
     if arcpy.Exists(output_path):
         arcpy_delete(output_path)
@@ -501,6 +515,8 @@ def contouring_generate(input_path, output_path):
 def contouring_filter(input_path):
     """"""
     
+    log(f"STEP {STEPS.index('contouring_filter')}. contouring_filter")
+
     # Select Layer By Attribute
     min_length = MIN_ATTRIBUTE_LENGTH * (Z_FACTOR_METERS / Z_FACTOR)
 
@@ -517,6 +533,8 @@ def contouring_filter(input_path):
     log("Selected features deleted.")
 
 def contouring_create_wip_sp_geodatabase():
+    log(f"STEP {STEPS.index('contouring_create_wip_sp_geodatabase')}. contouring_create_wip_sp_geodatabase")
+
     contours_wip_sp_geodatabase = os.path.join(BASE_DIR, CONTOURS_WIP_SP_GEODATABASE)
     if arcpy.Exists(contours_wip_sp_geodatabase):
         arcpy_deletecontours_wip_sp_geodatabase()
@@ -535,6 +553,8 @@ def contouring_create_wip_sp_geodatabase():
     )
 
 def contouring_project(input_path, output_path):
+    log(f"STEP {STEPS.index('contouring_project')}. contouring_project")
+
     log("Projecting contour lines.")
     arcpy.management.Project(
         in_dataset=input_path,
@@ -558,6 +578,8 @@ def contouring_project(input_path, output_path):
     log(f"Repairing of Geometry completed. Output: {output_path}")
 
 def contouring_add_data_fields(input_path):
+    log(f"STEP {STEPS.index('contouring_add_data_fields')}. contouring_add_data_fields")
+
     log("Adding and calculating Elevation field.")
     arcpy.management.AddField(
         in_table=input_path,
@@ -603,6 +625,8 @@ def contouring_add_data_fields(input_path):
     log("Line_Type field reclassified.")
 
 def contouring_cleanup_data_fields(input_path):
+    log(f"STEP {STEPS.index('contouring_cleanup_data_fields')}. contouring_cleanup_data_fields")
+
     log("Deleting unnecessary fields.")
     arcpy.management.DeleteField(
         in_table=input_path, 
@@ -611,6 +635,8 @@ def contouring_cleanup_data_fields(input_path):
     log("Fields deleted.")
 
 def contouring_create_output_geodatabase():
+    log(f"STEP {STEPS.index('contouring_create_output_geodatabase')}. contouring_create_output_geodatabase")
+
     output_geodatabase = os.path.join(BASE_DIR, OUTPUT_GEODATABASE)
     if arcpy.Exists(output_geodatabase):
         arcpy_delete(output_geodatabase)
@@ -642,6 +668,8 @@ def contouring_create_output_geodatabase():
     )
 
 def contouring_split(input_path, output_path, split_path, split_field):
+    log(f"STEP {STEPS.index('contouring_split')}. contouring_split")
+
     log("Splitting contour lines.")
     arcpy.analysis.Split(
         in_features=input_path,
@@ -654,6 +682,8 @@ def contouring_split(input_path, output_path, split_path, split_field):
     return output_path
 
 def contouring_export_tiles(input_path):
+    log(f"STEP {STEPS.index('contouring_export_tiles')}. contouring_export_tiles")
+
     log("Iterating through all line feature classes in the specified dataset.")
         
     # Initialize counters
@@ -758,6 +788,8 @@ def contouring_cleanup_auxiliary_files(path, extensions):
 def index_remove_legacy_files():
     """Delete all previous Work-In-Progress and Output files related to the contour tile index from previous executions"""
 
+    log(f"STEP {STEPS.index('index_remove_legacy_files')}. index_remove_legacy_files")
+
     # Ensure there is no Boundary_UTM from an old model
     mosaic_boundary = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, "Mosaic_Boundary")
     log(f"Deleting Boundary UTM from old models, if any: {mosaic_boundary}")
@@ -799,6 +831,8 @@ def index_remove_legacy_files():
     arcpy_delete(boundary_geojson)
     
 def index_define_nodata(input_path):
+    log(f"STEP {STEPS.index('index_define_nodata')}. index_define_nodata")
+
     log("Defining mosaic dataset NoData values")
     md_nodata = arcpy.management.DefineMosaicDatasetNoData(
         input_path, 
@@ -809,6 +843,8 @@ def index_define_nodata(input_path):
     return md_nodata
         
 def index_build_footprints(input_path):
+    log(f"STEP {STEPS.index('index_build_footprints')}. index_build_footprints")
+
     log("Building mosaic dataset footprints")
     arcpy.management.BuildFootprints(
         input_path,
@@ -827,36 +863,51 @@ def index_build_footprints(input_path):
     )[0]
 
 def index_export_boundary(input_path, output_path):
+    log(f"STEP {STEPS.index('index_export_boundary')}. index_export_boundary")
+
     log("Exporting mosaic boundary geometry")
     arcpy.management.ExportMosaicDatasetGeometry(input_path, output_path)
 
 def index_project_sp(input_path, output_path, spatial_reference):
+    log(f"STEP {STEPS.index('index_project_sp')}. index_project_sp")
+
     log(f"Projecting to {spatial_reference.name}")
     arcpy.management.Project(input_path, output_path, spatial_reference)
 
 def index_intersect(input_path, index_path, output_path):
+    log(f"STEP {STEPS.index('index_intersect')}. index_intersect")
+
     log("Intersecting boundaries with index")
     arcpy.analysis.Intersect([[input_path, ""], [index_path, ""]], output_path)
 
 def index_dissolve(input_path, output_path):
-    # Process 6: Dissolve Features
+    log(f"STEP {STEPS.index('index_dissolve')}. index_dissolve")
+
     log("Dissolving data limits")
     arcpy.management.Dissolve(input_path, output_path)
 
-def index_clip_boundary(input_path, clip_path, output_path):
+def index_clip(input_path, clip_path, output_path):
+    log(f"STEP {STEPS.index('index_clip')}. index_clip")
+
     log("Clipping index features")
     arcpy.analysis.Clip(input_path, clip_path, output_path)
 
 def index_cleanup_data_fields(input_path):
+    log(f"STEP {STEPS.index('index_cleanup_data_fields')}. index_cleanup_data_fields")
+
     log("Cleaning up fields")
     fields_to_delete = ["LABEL_X", "LABEL_Y", "NAME_X", "NAME_Y"]
     arcpy.management.DeleteField(input_path, fields_to_delete)[0]
 
 def index_project_wgs84(input_path, output_path):
+    log(f"STEP {STEPS.index('index_project_wgs84')}. index_project_wgs84")
+
     log("Projecting to WGS84")
     arcpy.management.Project(input_path, output_path, 4326)  # WGS84
 
 def index_export_geojson(input_path, output_path):
+    log(f"STEP {STEPS.index('index_export_geojson')}. index_export_geojson")
+
     log("Generating final GeoJSON")
     arcpy.conversion.FeaturesToJSON(
         input_path, 
@@ -915,7 +966,10 @@ def process_contour_lines():
             contouring_project(input_path=contours_feature_class, output_path=projected_contours_feature_dataset)
         
         contours_feature_class = projected_contours_feature_dataset
-    
+    else:
+        if STEP <= STEPS.index('contouring_project'):
+            log(f"SKIPPING STEP {STEPS.index('contouring_export_tiles')}. contouring_export_tiles")
+
     if STEP <= STEPS.index('contouring_add_data_fields'):
         contouring_add_data_fields(input_path=contours_feature_class)
         
@@ -935,6 +989,7 @@ def process_contour_lines():
         contouring_export_tiles(input_path=contour_tiles_feature_dataset)
 
     if STEP <= STEPS.index('contouring_cleanup_auxiliary_files'):
+        log(f"STEP {STEPS.index('contouring_cleanup_auxiliary_files')}. contouring_cleanup_auxiliary_files")
         contouring_cleanup_auxiliary_files(os.path.join(BASE_DIR, SHAPEFILE_OUTPUT_FOLDER), SHAPEFILE_AUX_EXTENSIONS)
         contouring_cleanup_auxiliary_files(os.path.join(BASE_DIR, DWG_OUTPUT_FOLDER), DWG_AUX_EXTENSIONS)
 
@@ -963,6 +1018,9 @@ def process_boundary_index():
             index_project_sp(input_path=mosaic_boundary, output_path=projected_mosaic_boundary, spatial_reference=coordinate_system)
             
         mosaic_boundary = projected_mosaic_boundary
+    else:
+        if STEP <= STEPS.index('index_project_sp'):
+            log(f"SKIPPING STEP {STEPS.index('index_project_sp')}. index_project_sp")
 
     tile_index_path = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_FEATURE_DATASET)
 
@@ -978,8 +1036,8 @@ def process_boundary_index():
 
     clipped = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_W_LIMITS_FEATURE_CLASS)
 
-    if STEP <= STEPS.index('index_clip_boundary'):
-        index_clip_boundary(input_path=tile_index_path, clip_path=dissolved, output_path=clipped)
+    if STEP <= STEPS.index('index_clip'):
+        index_clip(input_path=tile_index_path, clip_path=dissolved, output_path=clipped)
 
     if STEP <= STEPS.index('index_cleanup_data_fields'):
         index_cleanup_data_fields(input_path=clipped)
