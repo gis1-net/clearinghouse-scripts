@@ -10,19 +10,19 @@ Parameters:
 	
 Example of CSV file:
 			ALABAMA.csv contents:
-							ALABAMA,Autauga
-							ALABAMA,Baldwin
-							ALABAMA,Bibb
-							ALABAMA,Bullock
-							ALABAMA,Butler
-							ALABAMA,Calhoun
-							ALABAMA,Chambers
-							ALABAMA,Cherokee
-							ALABAMA,Chilton
-							ALABAMA,Choctaw
+							ALABAMA,Autauga,9749
+							ALABAMA,Baldwin,9749
+							ALABAMA,Bibb,9749
+							ALABAMA,Bullock,9748
+							ALABAMA,Butler,9749
+							ALABAMA,Calhoun,9748
+							ALABAMA,Chambers,9748
+							ALABAMA,Cherokee,9748
+							ALABAMA,Chilton,9749
+							ALABAMA,Choctaw,6507
 
 Syntax Example:
-		cd Z:\scripts\
+		cd Z:\Clearinghouse_Support\python
 		.\Contouring_Batch.ps1 .\ALABAMA.csv
 		
 Notes:
@@ -31,7 +31,7 @@ Notes:
 
 Operation:
 1. The script validates the existence of the input CSV file. If the file does not exist, the script exits with an error message.
-2. It initializes logging and sets up a task queue from the input CSV file. Each task is represented by a combination of State and County.
+2. It initializes logging and sets up a task queue from the input CSV file. Each task is represented by a combination of State, County, and Coordinate Reference System ID.
 3. The script spawns new PowerShell processes to execute a Python script (`contouring.py` in this case) for each task, passing the state and county as parameters to the Python script.
 4. Tasks are processed concurrently with a limit of 4 active processes at a time.
 5. Active and completed tasks are logged in a file named 'Contouring_Batch.log'.
@@ -59,12 +59,8 @@ if (-not (Test-Path $csvFile)) {
     exit 1
 }
 
-# Set the path to Python executable and working directory
-$pythonPath = "python.exe"
-$pythonDir = "C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3"
-
 # Read the CSV file
-$rows = Import-Csv -Path $csvFile -Header State,County
+$rows = Import-Csv -Path $csvFile -Header State,County,CRS
 
 # Initialize variables
 $logFile = "Contouring_Batch.log"
@@ -79,6 +75,7 @@ foreach ($row in $rows) {
     $taskQueue += [PSCustomObject]@{
         State = $row.State
         County = $row.County
+        CRS = $row.CRS
         Processed = $false  # Flag for whether the task has been processed
     }
 }
@@ -87,13 +84,14 @@ foreach ($row in $rows) {
 function Start-NewTask {
     param (
         [string]$state,
-        [string]$county
+        [string]$county,
+        [string]$crs
     )
 
     
-    $pythonCommand = "cd '$pythonDir'; .\$pythonPath Z:\scripts\Contouring.py $state $county"
-    Write-Host "Starting task: $state $county" -ForegroundColor Green
-    Add-Content $logFile "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Starting task: $state $county"
+    $pythonCommand = "python Z:\Clearinghouse_Support\python\Contouring.py $state $county $crs"
+    Write-Host "Starting task: $state $county $crs" -ForegroundColor Green
+    Add-Content $logFile "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Starting task: $state $county $crs"
 
     $process = Start-Process powershell.exe -ArgumentList "-Command", $pythonCommand -PassThru -WindowStyle Minimized
     return $process
@@ -113,7 +111,7 @@ while ($remainingTasks -gt 0 -or $processes.Count -gt 0) {
 
     Write-Host "`n=== Completed Tasks ===" -ForegroundColor Cyan
     foreach ($task in $completedTasks) {
-        Write-Host "Task: $($task.State) $($task.County)" -ForegroundColor Gray
+        Write-Host "Task: $($task.State) $($task.County) $($task.CRS)" -ForegroundColor Gray
     }
 
     # Check for completed processes
@@ -122,11 +120,11 @@ while ($remainingTasks -gt 0 -or $processes.Count -gt 0) {
         if ($process.HasExited) {
             # Log task completion
             $completedTask = $process.StartInfo.Arguments -replace '.*contouring\.py ', ''
-            $state, $county = $completedTask -split ' '
-            $completedTasks += [PSCustomObject]@{ State = $state; County = $county; }
+            $state, $county, $crs = $completedTask -split ' '
+            $completedTasks += [PSCustomObject]@{ State = $state; County = $county; CRS = $crs;}
 
-            Write-Host "Task completed: $state $county" -ForegroundColor Cyan
-            Add-Content $logFile "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Task completed: $state $county"
+            Write-Host "Task completed: $state $county $crs" -ForegroundColor Cyan
+            Add-Content $logFile "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Task completed: $state $county $crs"
 
             # Increment processed task counter and decrement remaining task counter
             $processedTasks++
@@ -142,8 +140,8 @@ while ($remainingTasks -gt 0 -or $processes.Count -gt 0) {
     while ($processes.Count -lt 5 -and $remainingTasks -gt 0) {
         $task = $taskQueue | Where-Object { $_.Processed -eq $false } | Select-Object -First 1
         if ($task) {
-            Write-Host "Starting new task: $($task.State) $($task.County)" -ForegroundColor Magenta
-            $process = Start-NewTask -state $task.State -county $task.County
+            Write-Host "Starting new task: $($task.State) $($task.County) $($task.CRS)" -ForegroundColor Magenta
+            $process = Start-NewTask -state $task.State -county $task.County -crs $task.CRS
             $processes.Add($process) # Add the process to ArrayList
 
             # Mark this task as processed
