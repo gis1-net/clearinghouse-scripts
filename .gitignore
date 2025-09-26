@@ -1,5 +1,3 @@
-**/node_modules/**
-**/*.shapefile/**
 *.log
 *.zip
 data/**
