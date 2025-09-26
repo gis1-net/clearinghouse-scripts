@@ -206,6 +206,16 @@ def clear_folder_contents(path):
     log(f"Total files deleted from {path}: {files_deleted}")
     return files_deleted
 
+def locate_spcs_grid():
+    with open('Z:\\Clearinghouse_Support\\data\Boundaries\\SPCS_Zone_Boundaries.geojson') as file:
+        spcs_zones = json.load(file)['features']
+        
+        for spcs_zone in spcs_zones:
+            if spcs_zone['properties']['SPCS_ID'] == TARGET_SP_COORDINATE_SYSTEM:
+                path = f"Z:\\Clearinghouse_Support\\data\\SPCS_5000Ft_Index_Grids_SP\\{spcs_zone['properties']['STATE'].replace(' ', '_')}\\{spcs_zone['properties']['SP_ZONE'].replace(' ', '_')}_INDEX_GRID_5000FT.shp"
+                if os.path.exists(path):
+                    return path
+
 def intro_message():
     """
     Print the introduction message and information at the beginning of the script
@@ -280,17 +290,18 @@ def get_inputs():
     BASE_DIR = os.path.join(f'{DATA_DRIVE}:\\', STATE, f'{LOCALITY}_Contours')
     OUTPUT_GEODATABASE = f'{LOCALITY}_Contours.gdb'
     
-    if args.dry_run:
-        print()
-        print(f'Mode: {MODE}')
-        print(f'State: {STATE}')
-        print(f'Locality: {LOCALITY}')
-        print(f'Folder Location: {BASE_DIR}')
-        print(f'SPCS: {TARGET_SP_COORDINATE_SYSTEM}')
-        print()
-        print(f'Starting on Step: {STEP}. {args.step}')
-        sys.exit(0)
+    print()
+    print(f'Mode: {MODE}')
+    print(f'State: {STATE}')
+    print(f'Locality: {LOCALITY}')
+    print(f'Folder Location: {BASE_DIR}')
+    print(f'SPCS: {TARGET_SP_COORDINATE_SYSTEM}')
+    print(f'Tile Index Location: {locate_spcs_grid()}')
+    print()
+    print(f'Process will start on Step {STEP}. {args.step}')
 
+    if args.dry_run:
+        sys.exit(0)
 
 #endregion
 
@@ -661,9 +672,11 @@ def contouring_create_output_geodatabase():
         spatial_reference=TARGET_SP_COORDINATE_SYSTEM
     )
 
+    spcs_grid = locate_spcs_grid()
+
     log("Adding Tile Index Data to Feature Dataset")
     arcpy.conversion.ExportFeatures(
-        in_features="Z:\\Clearinghouse_Support\\data\\SPCS_5000Ft_Index_Grids_SP\\Virginia\\VIRGINIA_SOUTH_INDEX_GRID_5000FT.shp",
+        in_features=spcs_grid,
         out_features=os.path.join(output_geodatabase, TILE_INDEX_FEATURE_DATASET)
     )
 
