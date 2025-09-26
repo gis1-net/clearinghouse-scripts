@@ -42,6 +42,7 @@ import datetime
 import subprocess
 import traceback
 import json
+import argparse
 
 #region Config Vars
 DATA_DRIVE = 'Z'
@@ -88,6 +89,7 @@ DWG_OUTPUT_FOLDER = 'Dwg_Files'
 
 #region Global Input Vars
 MODE = None
+STEP = 0
 STATE = None
 LOCALITY = None
 TARGET_SP_COORDINATE_SYSTEM = None
@@ -96,6 +98,36 @@ OUTPUT_GEODATABASE = None
 COORDINATE_SYSTEM_IS_METERS = None
 Z_FACTOR = None
 #endregion
+
+STEPS = [
+    'contouring_remove_legacy_files',
+    'contouring_compact_wip_geodatabase',
+    'contouring_set_tif_nodata_values',
+    'contouring_create_wip_geodatabase',
+    'contouring_create_mosaic_dataset',
+    'contouring_calculate_raster_statistics',
+    'contouring_generate',
+    'contouring_filter',
+    'contouring_create_wip_sp_geodatabase',
+    'contouring_project',
+    'contouring_add_data_fields',
+    'contouring_cleanup_data_fields',
+    'contouring_create_output_geodatabase',
+    'contouring_split',
+    'contouring_export_tiles',
+    'contouring_cleanup_auxiliary_files',
+    'index_remove_legacy_files',
+    'index_define_nodata',
+    'index_build_footprints',
+    'index_export_boundary',
+    'index_project_sp',
+    'index_intersect',
+    'index_dissolve',
+    'index_clip_boundary',
+    'index_cleanup_data_fields',
+    'index_project_wgs84',
+    'index_export_geojson',
+]
 
 #region Utility Functions
 def clear_screen():
@@ -174,25 +206,91 @@ def clear_folder_contents(path):
     log(f"Total files deleted from {path}: {files_deleted}")
     return files_deleted
 
-def get_inputs():
-    """In interactive mode, ask questions and collect inputs from the CLI"""
+def intro_message():
+    """
+    Print the introduction message and information at the beginning of the script
+    If in interactive mode, confirm before proceeding
+    """
 
-    global MODE, STATE, LOCALITY, TARGET_SP_COORDINATE_SYSTEM, BASE_DIR, OUTPUT_GEODATABASE, SHAPEFILE_OUTPUT_FOLDER, DWG_OUTPUT_FOLDER
+    log(f"Welcome to the Contour Processing Script.")
+    log(f"Processing State: {STATE}, County: {LOCALITY}")
+    
+    if MODE == 'interactive':
+        proceed = input("Do you want to proceed with the script? (y/n): ").strip().lower()
+        if proceed[0] != 'y':
+            log("Script execution cancelled by user.")
+            return
+
+def get_inputs():
+    """Parses command line arguments and if necessary ask questions and collect inputs from the CLI"""
+
+    global MODE, STEP, STATE, LOCALITY, TARGET_SP_COORDINATE_SYSTEM, BASE_DIR, OUTPUT_GEODATABASE, SHAPEFILE_OUTPUT_FOLDER, DWG_OUTPUT_FOLDER
+
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument(
+        'state', 
+        nargs='?',
+        default=None,
+        help="The name of the state folder (e.g. SOUTH_CAROLINA)"
+    )
+    parser.add_argument(
+        'locality', 
+        nargs='?',
+        default=None,
+        help="The name of the county or city (e.g. Abbeville_County)"
+    )
+    parser.add_argument(
+        'spcs', 
+        nargs='?',
+        default=None,
+        help="The EPSG ID number for the target state plane coordinate system (e.g. 6570 for South Carolina)"
+    )
+    parser.add_argument(
+        '-s', 
+        '--step',
+        default=STEPS[0],
+        help="Step to begin on (i.e. pick up where a previous execution ended)\nAllowed values:\n\t- " + "\n\t- ".join(STEPS))
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help="Output information about given arguments without executing the contouring process"
+    )
+    args = parser.parse_args()
+
+    if args.step:
+        if args.step in STEPS:
+            STEP = STEPS.index(args.step)
+        else:
+            print('\nERROR: Invalid step provided\n')
+            parser.print_help(sys.stderr)
+            sys.exit(1)
 
     # Parse state, locality, and elevation units from command-line arguments or prompt the user
-    if len(sys.argv) >= 4:
+    if args.state and args.locality and args.spcs:
         MODE = "passive"  # Skip confirmation if parameters are passed
-        STATE = sys.argv[1].strip()
-        LOCALITY = sys.argv[2].strip()
-        TARGET_SP_COORDINATE_SYSTEM = sys.argv[3].strip()
+        STATE = args.state
+        LOCALITY = args.locality
+        TARGET_SP_COORDINATE_SYSTEM = args.spcs
     else:
         MODE = "interactive"  # Require confirmation if no parameters are passed
         STATE = input("Enter the State Folder Name: ").strip()
         LOCALITY = input("Enter the Locality Folder Name: ").strip()
         TARGET_SP_COORDINATE_SYSTEM = input("Enter the ID # of the target output state plane coordinate system (e.g. 6570 for South Carolina SP): ")
-
+    
     BASE_DIR = os.path.join(f'{DATA_DRIVE}:\\', STATE, f'{LOCALITY}_Contours')
     OUTPUT_GEODATABASE = f'{LOCALITY}_Contours.gdb'
+    
+    if args.dry_run:
+        print()
+        print(f'Mode: {MODE}')
+        print(f'State: {STATE}')
+        print(f'Locality: {LOCALITY}')
+        print(f'Folder Location: {BASE_DIR}')
+        print(f'SPCS: {TARGET_SP_COORDINATE_SYSTEM}')
+        print()
+        print(f'Starting on Step: {STEP}. {args.step}')
+        sys.exit(0)
+
 
 #endregion
 
@@ -285,22 +383,7 @@ def read_mosaic_dataset_crs(mosaic_dataset):
 #endregion
 
 #region Contour Line Processing Steps
-def intro_message():
-    """
-    Print the introduction message and information at the beginning of the script
-    If in interactive mode, confirm before proceeding
-    """
-
-    log(f"Welcome to the Contour Processing Script.")
-    log(f"Processing State: {STATE}, County: {LOCALITY}")
-    
-    if MODE == 'interactive':
-        proceed = input("Do you want to proceed with the script? (y/n): ").strip().lower()
-        if proceed[0] != 'y':
-            log("Script execution cancelled by user.")
-            return
-
-def cleanup_old_contours_files():
+def contouring_remove_legacy_files():
     """
     Delete all previous Legacy, Work-In-Progress, and Output files related to contour lines from previous executions
     """
@@ -321,51 +404,8 @@ def cleanup_old_contours_files():
     step_3_geodatabase = os.path.join(BASE_DIR, "Contours_Step3.gdb")
     log(f"Deleting previous step 3 geodatabase, if any: {step_3_geodatabase}")
     arcpy_delete(step_3_geodatabase)
-    
-def cleanup_old_index_files():
-    """Delete all previous Work-In-Progress and Output files related to the contour tile index from previous executions"""
 
-    # Ensure there is no Boundary_UTM from an old model
-    mosaic_boundary = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, "Mosaic_Boundary")
-    log(f"Deleting Boundary UTM from old models, if any: {mosaic_boundary}")
-    arcpy_delete(mosaic_boundary)
-    
-    # Delete all mosaic boundary files, if any present
-    mosaic_boundary = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, MOSAIC_BOUNDARY_FEATURE_CLASS)
-    log(f"Deleting previous mosaic boundary files, if any: {mosaic_boundary}")
-    arcpy_delete(mosaic_boundary)
-
-    # Delete all mosaic boundary SP files, if any present
-    mosaic_boundary_sp = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, MOSAIC_BOUNDARY_SP_FEATURE_CLASS)
-    log(f"Deleting previous mosaic boundary sp files, if any: {mosaic_boundary_sp}")
-    arcpy_delete(mosaic_boundary_sp)
-
-    # Delete all data limit file, if any present
-    data_limits = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, DATA_LIMITS_FEATURE_CLASS)
-    log(f"Deleting previous data limits file, if any: {data_limits}")
-    arcpy_delete(data_limits)
-
-    # Delete data limit sp if any present
-    data_limits_sp = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, DATA_LIMITS_SP_FEATURE_CLASS)
-    log(f"Deleting previous data limits sp file, if any: {data_limits_sp}")
-    arcpy_delete(data_limits_sp)
-
-    # Delete tile index with limits if any present
-    tile_index_w_limits = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_W_LIMITS_FEATURE_CLASS)
-    log(f"Deleting previous WGS tile index file, if any: {tile_index_w_limits}")
-    arcpy_delete(tile_index_w_limits)
-
-    # Delete tile index WGS if any present
-    tile_index_wgs = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_WGS_FEATURE_CLASS)
-    log(f"Deleting previous WGS tile index file, if any: {tile_index_wgs}")
-    arcpy_delete(tile_index_wgs)
-
-    # Delete geojson index if present
-    boundary_geojson = os.path.join(BASE_DIR, f"{LOCALITY}_{CONTOURS_INDEX_JSON}")
-    log(f"Deleting previous GeoJSON index file, if any: {boundary_geojson}")
-    arcpy_delete(boundary_geojson)
-    
-def compact_contours_wip_geodatabase():
+def contouring_compact_wip_geodatabase():
     """Compact the contours geodatabase"""
 
     # Intermediate compaction of the county contours geodatabase
@@ -375,7 +415,7 @@ def compact_contours_wip_geodatabase():
     arcpy.Compact_management(contours_wip_geodatabase)
     log("Intermediate geodatabase compaction completed.")
 
-def set_tif_nodata_values():
+def contouring_set_tif_nodata_values():
     """Set standard NoData value for all .tif files"""
 
     tif_files_dir = os.path.join(BASE_DIR, TIF_FILES)
@@ -387,7 +427,7 @@ def set_tif_nodata_values():
             log(f'Setting {file_path} NoData value to {NO_DATA_VALUE}')
             arcpy.management.SetRasterProperties(in_raster=file_path, nodata=f'1 {NO_DATA_VALUE}')
 
-def create_contours_wip_geodatabase():
+def contouring_create_wip_geodatabase():
     """Create Contours WIP Geodatabase"""
 
     contours_wip_geodatabase = os.path.join(BASE_DIR, CONTOURS_WIP_GEODATABASE)
@@ -401,7 +441,7 @@ def create_contours_wip_geodatabase():
         out_name=CONTOURS_WIP_GEODATABASE
     )
 
-def create_mosaic_dataset(mosaic_dataset):
+def contouring_create_mosaic_dataset(mosaic_dataset):
     """Create mosaic dataset from Tif Files"""
 
     # Delete old mosaic dataset, if exists
@@ -427,7 +467,7 @@ def create_mosaic_dataset(mosaic_dataset):
         input_path=tif_files_dir
     )
 
-def calculate_contours_raster_statistics(input_path):
+def contouring_calculate_raster_statistics(input_path):
     """Calculate raster statistics on mosaic dataset"""
 
     # Set this to ZERO so LocalWorker.exe doesn't go crazy
@@ -442,8 +482,7 @@ def calculate_contours_raster_statistics(input_path):
     arcpy.env.parallelProcessingFactor = None
     log(f"Environment parallelProcessingFactor set to None.")
 
-# Step 1
-def generate_contours(input_path, output_path):
+def contouring_generate(input_path, output_path):
     """Generate contour lines from mosaic dataset"""
 
     if arcpy.Exists(output_path):
@@ -459,8 +498,7 @@ def generate_contours(input_path, output_path):
     )
     log(f"Contour process completed. Output: {output_path}")
 
-# Step 2
-def filter_contours(input_path):
+def contouring_filter(input_path):
     """"""
     
     # Select Layer By Attribute
@@ -478,7 +516,7 @@ def filter_contours(input_path):
     arcpy.management.DeleteFeatures(selected_layer)
     log("Selected features deleted.")
 
-def create_contours_sp_geodatabase():
+def contouring_create_wip_sp_geodatabase():
     contours_wip_sp_geodatabase = os.path.join(BASE_DIR, CONTOURS_WIP_SP_GEODATABASE)
     if arcpy.Exists(contours_wip_sp_geodatabase):
         arcpy_deletecontours_wip_sp_geodatabase()
@@ -496,8 +534,7 @@ def create_contours_sp_geodatabase():
         spatial_reference=TARGET_SP_COORDINATE_SYSTEM
     )
 
-# Step 3
-def project_contours(input_path, output_path):
+def contouring_project(input_path, output_path):
     log("Projecting contour lines.")
     arcpy.management.Project(
         in_dataset=input_path,
@@ -520,20 +557,7 @@ def project_contours(input_path, output_path):
     )
     log(f"Repairing of Geometry completed. Output: {output_path}")
 
-# Step 4
-def smooth_contours(input_path, output_path):
-    log("Smoothing contour lines.")
-    arcpy.cartography.SmoothLine(
-       in_features=input_path,
-       out_feature_class=output_path,
-       algorithm=SMOOTH_ALGORITHM,
-       tolerance=SMOOTH_TOLERANCE,
-       error_option="RESOLVE_ERRORS" 
-    )
-    log(f"Smooth Line process completed. Output: {output_path}")
-
-# Step 5
-def add_contours_data_fields(input_path):
+def contouring_add_data_fields(input_path):
     log("Adding and calculating Elevation field.")
     arcpy.management.AddField(
         in_table=input_path,
@@ -578,8 +602,7 @@ def add_contours_data_fields(input_path):
 
     log("Line_Type field reclassified.")
 
-# Step 6
-def cleanup_contours_data_fields(input_path):
+def contouring_cleanup_data_fields(input_path):
     log("Deleting unnecessary fields.")
     arcpy.management.DeleteField(
         in_table=input_path, 
@@ -587,7 +610,7 @@ def cleanup_contours_data_fields(input_path):
     )
     log("Fields deleted.")
 
-def create_output_geodatabase():
+def contouring_create_output_geodatabase():
     output_geodatabase = os.path.join(BASE_DIR, OUTPUT_GEODATABASE)
     if arcpy.Exists(output_geodatabase):
         arcpy_delete(output_geodatabase)
@@ -618,8 +641,7 @@ def create_output_geodatabase():
         out_features=os.path.join(output_geodatabase, TILE_INDEX_FEATURE_DATASET)
     )
 
-# Step 7
-def split_contours(input_path, output_path, split_path, split_field):
+def contouring_split(input_path, output_path, split_path, split_field):
     log("Splitting contour lines.")
     arcpy.analysis.Split(
         in_features=input_path,
@@ -631,8 +653,7 @@ def split_contours(input_path, output_path, split_path, split_field):
 
     return output_path
 
-# Step 9
-def export_contours_tiles(input_path):
+def contouring_export_tiles(input_path):
     log("Iterating through all line feature classes in the specified dataset.")
         
     # Initialize counters
@@ -714,8 +735,7 @@ def export_contours_tiles(input_path):
     log(f"Exported {dwg_1ft_count} DWG files (1Ft)")
     log(f"Exported {dwg_2ft_count} DWG files (2Ft)")
 
-# Step 10
-def cleanup_contours_auxiliary_files(path, extensions):
+def contouring_cleanup_auxiliary_files(path, extensions):
     log(f"Cleaning up auxiliary files ({', '.join(extensions)}) in the output path {path}")
 
     deleted_files = 0
@@ -735,8 +755,50 @@ def cleanup_contours_auxiliary_files(path, extensions):
 #endregion
 
 #region Boundary Index Processing Steps
-# Step 1
-def create_boundary_mosaic_dataset_nodata(input_path):
+def index_remove_legacy_files():
+    """Delete all previous Work-In-Progress and Output files related to the contour tile index from previous executions"""
+
+    # Ensure there is no Boundary_UTM from an old model
+    mosaic_boundary = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, "Mosaic_Boundary")
+    log(f"Deleting Boundary UTM from old models, if any: {mosaic_boundary}")
+    arcpy_delete(mosaic_boundary)
+    
+    # Delete all mosaic boundary files, if any present
+    mosaic_boundary = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, MOSAIC_BOUNDARY_FEATURE_CLASS)
+    log(f"Deleting previous mosaic boundary files, if any: {mosaic_boundary}")
+    arcpy_delete(mosaic_boundary)
+
+    # Delete all mosaic boundary SP files, if any present
+    mosaic_boundary_sp = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, MOSAIC_BOUNDARY_SP_FEATURE_CLASS)
+    log(f"Deleting previous mosaic boundary sp files, if any: {mosaic_boundary_sp}")
+    arcpy_delete(mosaic_boundary_sp)
+
+    # Delete all data limit file, if any present
+    data_limits = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, DATA_LIMITS_FEATURE_CLASS)
+    log(f"Deleting previous data limits file, if any: {data_limits}")
+    arcpy_delete(data_limits)
+
+    # Delete data limit sp if any present
+    data_limits_sp = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, DATA_LIMITS_SP_FEATURE_CLASS)
+    log(f"Deleting previous data limits sp file, if any: {data_limits_sp}")
+    arcpy_delete(data_limits_sp)
+
+    # Delete tile index with limits if any present
+    tile_index_w_limits = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_W_LIMITS_FEATURE_CLASS)
+    log(f"Deleting previous WGS tile index file, if any: {tile_index_w_limits}")
+    arcpy_delete(tile_index_w_limits)
+
+    # Delete tile index WGS if any present
+    tile_index_wgs = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_WGS_FEATURE_CLASS)
+    log(f"Deleting previous WGS tile index file, if any: {tile_index_wgs}")
+    arcpy_delete(tile_index_wgs)
+
+    # Delete geojson index if present
+    boundary_geojson = os.path.join(BASE_DIR, f"{LOCALITY}_{CONTOURS_INDEX_JSON}")
+    log(f"Deleting previous GeoJSON index file, if any: {boundary_geojson}")
+    arcpy_delete(boundary_geojson)
+    
+def index_define_nodata(input_path):
     log("Defining mosaic dataset NoData values")
     md_nodata = arcpy.management.DefineMosaicDatasetNoData(
         input_path, 
@@ -746,10 +808,9 @@ def create_boundary_mosaic_dataset_nodata(input_path):
 
     return md_nodata
         
-# Step 2
-def build_boundary_footprints(input_path):
+def index_build_footprints(input_path):
     log("Building mosaic dataset footprints")
-    output = arcpy.management.BuildFootprints(
+    arcpy.management.BuildFootprints(
         input_path,
         reset_footprint="RADIOMETRY",  # Computational Method: Radiometry
         min_data_value=-300,  # Minimum Data Value
@@ -765,49 +826,37 @@ def build_boundary_footprints(input_path):
         min_region_size=1  # Minimum Region Size
     )[0]
 
-    return output
-
-# Step 3
-def export_boundary_mosaic_dataset(input_path, output_path):
+def index_export_boundary(input_path, output_path):
     log("Exporting mosaic boundary geometry")
     arcpy.management.ExportMosaicDatasetGeometry(input_path, output_path)
 
-# Step 4
-def project_boundary_sp(input_path, output_path, spatial_reference):
+def index_project_sp(input_path, output_path, spatial_reference):
     log(f"Projecting to {spatial_reference.name}")
     arcpy.management.Project(input_path, output_path, spatial_reference)
 
-# Step 5
-def intersect_boundary(input_path, index_path, output_path):
+def index_intersect(input_path, index_path, output_path):
     log("Intersecting boundaries with index")
     arcpy.analysis.Intersect([[input_path, ""], [index_path, ""]], output_path)
 
-# Step 6
-def dissolve_boundary_features(input_path, output_path):
+def index_dissolve(input_path, output_path):
     # Process 6: Dissolve Features
     log("Dissolving data limits")
     arcpy.management.Dissolve(input_path, output_path)
 
-# Step 7
-def clip_boundary_features(input_path, clip_path, output_path):
+def index_clip_boundary(input_path, clip_path, output_path):
     log("Clipping index features")
     arcpy.analysis.Clip(input_path, clip_path, output_path)
 
-# Step 8
-def cleanup_boundary_data_fields(input_path):
+def index_cleanup_data_fields(input_path):
     log("Cleaning up fields")
     fields_to_delete = ["LABEL_X", "LABEL_Y", "NAME_X", "NAME_Y"]
-    output = arcpy.management.DeleteField(input_path, fields_to_delete)[0]
+    arcpy.management.DeleteField(input_path, fields_to_delete)[0]
 
-    return output
-
-# Step 9
-def project_boundary_wgs84(input_path, output_path):
+def index_project_wgs84(input_path, output_path):
     log("Projecting to WGS84")
     arcpy.management.Project(input_path, output_path, 4326)  # WGS84
 
-# Step 10
-def export_boundary_geojson(input_path, output_path):
+def index_export_geojson(input_path, output_path):
     log("Generating final GeoJSON")
     arcpy.conversion.FeaturesToJSON(
         input_path, 
@@ -821,92 +870,136 @@ def export_boundary_geojson(input_path, output_path):
 def process_contour_lines():
     global COORDINATE_SYSTEM_IS_METERS, Z_FACTOR
 
-    # cleanup_old_contours_files()
-    # compact_contours_wip_geodatabase()
+    if STEP <= STEPS.index('contouring_remove_legacy_files'):
+        contouring_remove_legacy_files()
+        
+    if STEP <= STEPS.index('contouring_compact_wip_geodatabase'):
+        contouring_compact_wip_geodatabase()
 
-    # set_tif_nodata_values()
+    if STEP <= STEPS.index('contouring_set_tif_nodata_values'):
+        contouring_set_tif_nodata_values()
 
-    # create_contours_wip_geodatabase()
-    # mosaic_dataset = os.path.join(BASE_DIR, CONTOURS_WIP_GEODATABASE, MOSAIC_DATASET)
-    # create_mosaic_dataset(mosaic_dataset)
+    if STEP <= STEPS.index('contouring_create_wip_geodatabase'):
+        contouring_create_wip_geodatabase()
 
-    # coordinate_system = read_mosaic_dataset_crs(mosaic_dataset)
-    # COORDINATE_SYSTEM_IS_METERS = coordinate_system.linearUnitName == 'Meter'
-    # Z_FACTOR = Z_FACTOR_METERS if (COORDINATE_SYSTEM_IS_METERS) else Z_FACTOR_FEET
-    # log(f'Coordinate system unit is {coordinate_system.linearUnitName}, Z-Factor set to {Z_FACTOR}')
+    mosaic_dataset = os.path.join(BASE_DIR, CONTOURS_WIP_GEODATABASE, MOSAIC_DATASET)
+    
+    if STEP <= STEPS.index('contouring_create_mosaic_dataset'):
+        contouring_create_mosaic_dataset(mosaic_dataset)
 
-    # calculate_contours_raster_statistics(mosaic_dataset)
+    coordinate_system = read_mosaic_dataset_crs(mosaic_dataset)
+    COORDINATE_SYSTEM_IS_METERS = coordinate_system.linearUnitName == 'Meter'
+    Z_FACTOR = Z_FACTOR_METERS if (COORDINATE_SYSTEM_IS_METERS) else Z_FACTOR_FEET
+    log(f'Coordinate system unit is {coordinate_system.linearUnitName}, Z-Factor set to {Z_FACTOR}')
+
+    if STEP <= STEPS.index('contouring_calculate_raster_statistics'):
+        contouring_calculate_raster_statistics(mosaic_dataset)
 
     initial_contours_feature_class = os.path.join(BASE_DIR, CONTOURS_WIP_GEODATABASE, CONTOURS_FEATURE_CLASS)
-    # generate_contours(input_path=mosaic_dataset, output_path=initial_contours_feature_class)
+    
+    if STEP <= STEPS.index('contouring_generate'):
+        contouring_generate(input_path=mosaic_dataset, output_path=initial_contours_feature_class)
 
     contours_feature_class = initial_contours_feature_class
 
-    # filter_contours(input_path=contours_feature_class)
+    if STEP <= STEPS.index('contouring_filter'):
+        contouring_filter(input_path=contours_feature_class)
 
     if COORDINATE_SYSTEM_IS_METERS:
-    #     create_contours_sp_geodatabase()
-    #     projected_contours_feature_dataset = os.path.join(BASE_DIR, CONTOURS_WIP_SP_GEODATABASE, CONTOURS_SP_FEATURE_DATASET)
-    #     project_contours(input_path=contours_feature_class, output_path=projected_contours_feature_dataset)
+        if STEP <= STEPS.index('contouring_create_wip_sp_geodatabase'):
+            contouring_create_wip_sp_geodatabase()
+
+        projected_contours_feature_dataset = os.path.join(BASE_DIR, CONTOURS_WIP_SP_GEODATABASE, CONTOURS_SP_FEATURE_DATASET)
+        
+        if STEP <= STEPS.index('contouring_project'):
+            contouring_project(input_path=contours_feature_class, output_path=projected_contours_feature_dataset)
+        
         contours_feature_class = projected_contours_feature_dataset
-
-    # # if SMOOTH_ENABLED:
-    # #     smooth_contours()
     
-    # add_contours_data_fields(input_path=contours_feature_class)
-    # cleanup_contours_data_fields(input_path=contours_feature_class)
+    if STEP <= STEPS.index('contouring_add_data_fields'):
+        contouring_add_data_fields(input_path=contours_feature_class)
+        
+    if STEP <= STEPS.index('contouring_cleanup_data_fields'):
+        contouring_cleanup_data_fields(input_path=contours_feature_class)
 
-    create_output_geodatabase()
+    if STEP <= STEPS.index('contouring_create_output_geodatabase'):
+        contouring_create_output_geodatabase()
+
     contour_tiles_feature_dataset = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, CONTOUR_TILES_FEATURE_DATASET)
     tile_index = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_FEATURE_DATASET)
-    split_contours(input_path=contours_feature_class, output_path=contour_tiles_feature_dataset, split_path=tile_index, split_field=CONTOUR_SPLIT_FIELD)
     
-    export_contours_tiles(input_path=contour_tiles_feature_dataset)
-    cleanup_contours_auxiliary_files(os.path.join(BASE_DIR, SHAPEFILE_OUTPUT_FOLDER), SHAPEFILE_AUX_EXTENSIONS)
-    cleanup_contours_auxiliary_files(os.path.join(BASE_DIR, DWG_OUTPUT_FOLDER), DWG_AUX_EXTENSIONS)
+    if STEP <= STEPS.index('contouring_split'):
+        contouring_split(input_path=contours_feature_class, output_path=contour_tiles_feature_dataset, split_path=tile_index, split_field=CONTOUR_SPLIT_FIELD)    
+
+    if STEP <= STEPS.index('contouring_export_tiles'):
+        contouring_export_tiles(input_path=contour_tiles_feature_dataset)
+
+    if STEP <= STEPS.index('contouring_cleanup_auxiliary_files'):
+        contouring_cleanup_auxiliary_files(os.path.join(BASE_DIR, SHAPEFILE_OUTPUT_FOLDER), SHAPEFILE_AUX_EXTENSIONS)
+        contouring_cleanup_auxiliary_files(os.path.join(BASE_DIR, DWG_OUTPUT_FOLDER), DWG_AUX_EXTENSIONS)
 
 def process_boundary_index():
-    cleanup_old_index_files()
+    if STEP <= STEPS.index('index_remove_legacy_files'):
+        index_remove_legacy_files()
 
     input_mosaic_dataset = os.path.join(BASE_DIR, CONTOURS_WIP_GEODATABASE, MOSAIC_DATASET)
 
-    mosaic_dataset_nd = create_boundary_mosaic_dataset_nodata(input_mosaic_dataset)
-    footprint = build_boundary_footprints(input_path=mosaic_dataset_nd)
+    if STEP <= STEPS.index('index_define_nodata'):
+        index_define_nodata(input_mosaic_dataset)
+        
+    if STEP <= STEPS.index('index_build_footprints'):
+        index_build_footprints(input_path=input_mosaic_dataset)
 
     mosaic_boundary = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, MOSAIC_BOUNDARY_FEATURE_CLASS)
-    export_boundary_mosaic_dataset(input_path=footprint, output_path=mosaic_boundary)
+    
+    if STEP <= STEPS.index('index_export_boundary'):
+        index_export_boundary(input_path=input_mosaic_dataset, output_path=mosaic_boundary)
 
     if COORDINATE_SYSTEM_IS_METERS:
         coordinate_system = read_mosaic_dataset_crs(input_mosaic_dataset)
         projected_mosaic_boundary = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, MOSAIC_BOUNDARY_SP_FEATURE_CLASS)
-        project_boundary_sp(input_path=mosaic_boundary, output_path=projected_mosaic_boundary, spatial_reference=coordinate_system)
+        
+        if STEP <= STEPS.index('index_project_sp'):
+            index_project_sp(input_path=mosaic_boundary, output_path=projected_mosaic_boundary, spatial_reference=coordinate_system)
+            
         mosaic_boundary = projected_mosaic_boundary
 
     tile_index_path = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_FEATURE_DATASET)
 
     intersect = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, DATA_LIMITS_FEATURE_CLASS)
-    intersect_boundary(input_path=mosaic_boundary, index_path=tile_index_path, output_path=intersect)
+    
+    if STEP <= STEPS.index('index_intersect'):
+        index_intersect(input_path=mosaic_boundary, index_path=tile_index_path, output_path=intersect)
 
     dissolved = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, DATA_LIMITS_SP_FEATURE_CLASS)
-    dissolve_boundary_features(input_path=intersect, output_path=dissolved)
+    
+    if STEP <= STEPS.index('index_dissolve'):
+        index_dissolve(input_path=intersect, output_path=dissolved)
 
     clipped = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_W_LIMITS_FEATURE_CLASS)
-    clip_boundary_features(input_path=tile_index_path, clip_path=dissolved, output_path=clipped)
 
-    cleaned = cleanup_boundary_data_fields(input_path=clipped)
+    if STEP <= STEPS.index('index_clip_boundary'):
+        index_clip_boundary(input_path=tile_index_path, clip_path=dissolved, output_path=clipped)
+
+    if STEP <= STEPS.index('index_cleanup_data_fields'):
+        index_cleanup_data_fields(input_path=clipped)
 
     index_wgs = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_WGS_FEATURE_CLASS)
-    project_boundary_wgs84(input_path=cleaned, output_path=index_wgs)
+    
+    if STEP <= STEPS.index('index_project_wgs84'):
+        index_project_wgs84(input_path=clipped, output_path=index_wgs)
 
     boundary_geojson = os.path.join(BASE_DIR, f"{LOCALITY}_{CONTOURS_INDEX_JSON}")
-    export_boundary_geojson(input_path=index_wgs, output_path=boundary_geojson)
+    
+    if STEP <= STEPS.index('index_export_geojson'):
+        index_export_geojson(input_path=index_wgs, output_path=boundary_geojson)
 #endregion
 
 #region Main
 def main():
     start_time = datetime.datetime.now() 
 
-    clear_screen()
+    # clear_screen()
     get_inputs()
     clear_log()
 
