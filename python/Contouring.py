@@ -105,6 +105,7 @@ STEPS = [
     'contouring_set_tif_nodata_values',
     'contouring_create_wip_geodatabase',
     'contouring_create_mosaic_dataset',
+    'contouring_define_nodata',
     'contouring_calculate_raster_statistics',
     'contouring_generate',
     'contouring_filter',
@@ -117,13 +118,13 @@ STEPS = [
     'contouring_export_tiles',
     'contouring_cleanup_auxiliary_files',
     'index_remove_legacy_files',
-    'index_define_nodata',
     'index_build_footprints',
     'index_export_boundary',
     'index_project_sp',
     'index_intersect',
     'index_dissolve',
     'index_clip',
+    'index_remove_empty_tiles',
     'index_cleanup_data_fields',
     'index_project_wgs84',
     'index_export_geojson',
@@ -488,6 +489,18 @@ def contouring_create_mosaic_dataset(mosaic_dataset):
         input_path=tif_files_dir
     )
 
+def contouring_define_nodata(input_path):
+    log(f"STEP {STEPS.index('contouring_define_nodata')}. contouring_define_nodata")
+
+    log("Defining mosaic dataset NoData values")
+    md_nodata = arcpy.management.DefineMosaicDatasetNoData(
+        input_path, 
+        num_bands=1, 
+        bands_for_nodata_value=[["ALL_BANDS", NO_DATA_VALUE]]
+    )[0]
+
+    return md_nodata
+        
 def contouring_calculate_raster_statistics(input_path):
     """Calculate raster statistics on mosaic dataset"""
 
@@ -842,19 +855,7 @@ def index_remove_legacy_files():
     boundary_geojson = os.path.join(BASE_DIR, f"{LOCALITY}_{CONTOURS_INDEX_JSON}")
     log(f"Deleting previous GeoJSON index file, if any: {boundary_geojson}")
     arcpy_delete(boundary_geojson)
-    
-def index_define_nodata(input_path):
-    log(f"STEP {STEPS.index('index_define_nodata')}. index_define_nodata")
 
-    log("Defining mosaic dataset NoData values")
-    md_nodata = arcpy.management.DefineMosaicDatasetNoData(
-        input_path, 
-        num_bands=1, 
-        bands_for_nodata_value=[["ALL_BANDS", NO_DATA_VALUE]]
-    )[0]
-
-    return md_nodata
-        
 def index_build_footprints(input_path):
     log(f"STEP {STEPS.index('index_build_footprints')}. index_build_footprints")
 
@@ -905,6 +906,22 @@ def index_clip(input_path, clip_path, output_path):
     log("Clipping index features")
     arcpy.analysis.Clip(input_path, clip_path, output_path)
 
+def index_remove_empty_tiles():
+    log(f"STEP {STEPS.index('index_remove_empty_tiles')}. index_remove_empty_tiles")
+
+    log(f'Selecting non-intersecting features between {TILE_INDEX_W_LIMITS_FEATURE_CLASS} and {CONTOURS_SP_FEATURE_DATASET}')
+    empty_tiles, count = arcpy.management.SelectLayerByLocation(
+        in_layer=TILE_INDEX_W_LIMITS_FEATURE_CLASS,
+        overlap_type='INTERSECT',
+        select_features=CONTOURS_SP_FEATURE_DATASET,
+        selection_type='NEW_SELECTION',
+        invert_spatial_relationship=True
+    )
+
+    log(f'Deleting {count} empty tiles')
+    arcpy.management.DeleteFeatures(empty_tiles)
+    log(f'{count} Empty tiles deleted')
+
 def index_cleanup_data_fields(input_path):
     log(f"STEP {STEPS.index('index_cleanup_data_fields')}. index_cleanup_data_fields")
 
@@ -951,6 +968,9 @@ def process_contour_lines():
     if STEP <= STEPS.index('contouring_create_mosaic_dataset'):
         contouring_create_mosaic_dataset(mosaic_dataset)
 
+    if STEP <= STEPS.index('contouring_define_nodata'):
+        contouring_define_nodata(mosaic_dataset)
+        
     coordinate_system = read_mosaic_dataset_crs(mosaic_dataset)
     COORDINATE_SYSTEM_IS_METERS = coordinate_system.linearUnitName == 'Meter'
     Z_FACTOR = Z_FACTOR_METERS if (COORDINATE_SYSTEM_IS_METERS) else Z_FACTOR_FEET
@@ -1012,9 +1032,6 @@ def process_boundary_index():
 
     input_mosaic_dataset = os.path.join(BASE_DIR, CONTOURS_WIP_GEODATABASE, MOSAIC_DATASET)
 
-    if STEP <= STEPS.index('index_define_nodata'):
-        index_define_nodata(input_mosaic_dataset)
-        
     if STEP <= STEPS.index('index_build_footprints'):
         index_build_footprints(input_path=input_mosaic_dataset)
 
@@ -1023,24 +1040,17 @@ def process_boundary_index():
     if STEP <= STEPS.index('index_export_boundary'):
         index_export_boundary(input_path=input_mosaic_dataset, output_path=mosaic_boundary)
 
-    if COORDINATE_SYSTEM_IS_METERS:
-        coordinate_system = read_mosaic_dataset_crs(input_mosaic_dataset)
-        projected_mosaic_boundary = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, MOSAIC_BOUNDARY_SP_FEATURE_CLASS)
+    projected_mosaic_boundary = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, MOSAIC_BOUNDARY_SP_FEATURE_CLASS)
+    
+    if STEP <= STEPS.index('index_project_sp'):
+        index_project_sp(input_path=mosaic_boundary, output_path=projected_mosaic_boundary, spatial_reference=TARGET_SP_COORDINATE_SYSTEM)
         
-        if STEP <= STEPS.index('index_project_sp'):
-            index_project_sp(input_path=mosaic_boundary, output_path=projected_mosaic_boundary, spatial_reference=coordinate_system)
-            
-        mosaic_boundary = projected_mosaic_boundary
-    else:
-        if STEP <= STEPS.index('index_project_sp'):
-            log(f"SKIPPING STEP {STEPS.index('index_project_sp')}. index_project_sp")
-
     tile_index_path = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_FEATURE_DATASET)
 
     intersect = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, DATA_LIMITS_FEATURE_CLASS)
     
     if STEP <= STEPS.index('index_intersect'):
-        index_intersect(input_path=mosaic_boundary, index_path=tile_index_path, output_path=intersect)
+        index_intersect(input_path=projected_mosaic_boundary, index_path=tile_index_path, output_path=intersect)
 
     dissolved = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, DATA_LIMITS_SP_FEATURE_CLASS)
     
@@ -1051,6 +1061,9 @@ def process_boundary_index():
 
     if STEP <= STEPS.index('index_clip'):
         index_clip(input_path=tile_index_path, clip_path=dissolved, output_path=clipped)
+
+    if STEP <= STEPS.index('index_remove_empty_tiles'):
+        index_remove_empty_tiles()
 
     if STEP <= STEPS.index('index_cleanup_data_fields'):
         index_cleanup_data_fields(input_path=clipped)
