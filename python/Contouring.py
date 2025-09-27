@@ -290,16 +290,20 @@ def get_inputs():
     
     BASE_DIR = os.path.join(f'{DATA_DRIVE}:\\', STATE, f'{LOCALITY}_Contours')
     OUTPUT_GEODATABASE = f'{LOCALITY}_Contours.gdb'
+
+    clear_log()
     
     print()
-    print(f'Mode: {MODE}')
-    print(f'State: {STATE}')
-    print(f'Locality: {LOCALITY}')
-    print(f'Folder Location: {BASE_DIR}')
-    print(f'SPCS: {TARGET_SP_COORDINATE_SYSTEM}')
-    print(f'Tile Index Location: {locate_spcs_grid()}')
+    log('----- STARTING CONTOURING SCRIPT -----')
     print()
-    print(f'Process will start on Step {STEP}. {args.step}')
+    log(f'Mode: {MODE}')
+    log(f'State: {STATE}')
+    log(f'Locality: {LOCALITY}')
+    log(f'Folder Location: {BASE_DIR}')
+    log(f'SPCS: {TARGET_SP_COORDINATE_SYSTEM}')
+    log(f'Tile Index Location: {locate_spcs_grid()}')
+    print()
+    log(f'Process will start on Step {STEP}. {args.step}')
 
     if args.dry_run:
         sys.exit(0)
@@ -1085,7 +1089,6 @@ def main():
 
     # clear_screen()
     get_inputs()
-    clear_log()
 
     try:
         intro_message()
