@@ -565,7 +565,7 @@ def contouring_create_wip_sp_geodatabase():
 
     contours_wip_sp_geodatabase = os.path.join(BASE_DIR, CONTOURS_WIP_SP_GEODATABASE)
     if arcpy.Exists(contours_wip_sp_geodatabase):
-        arcpy_deletecontours_wip_sp_geodatabase()
+        arcpy_delete(contours_wip_sp_geodatabase)
 
     log("Creating Geodatabase for projected contours")
     arcpy.management.CreateFileGDB(
@@ -889,7 +889,7 @@ def index_export_boundary(input_path, output_path):
 def index_project_sp(input_path, output_path, spatial_reference):
     log(f"STEP {STEPS.index('index_project_sp')}. index_project_sp")
 
-    log(f"Projecting to {spatial_reference.name}")
+    log(f"Projecting to {spatial_reference}")
     arcpy.management.Project(input_path, output_path, spatial_reference)
 
 def index_intersect(input_path, index_path, output_path):
@@ -914,13 +914,15 @@ def index_remove_empty_tiles():
     log(f"STEP {STEPS.index('index_remove_empty_tiles')}. index_remove_empty_tiles")
 
     log(f'Selecting non-intersecting features between {TILE_INDEX_W_LIMITS_FEATURE_CLASS} and {CONTOURS_SP_FEATURE_DATASET}')
-    empty_tiles, count = arcpy.management.SelectLayerByLocation(
-        in_layer=TILE_INDEX_W_LIMITS_FEATURE_CLASS,
+    empty_tiles = arcpy.management.SelectLayerByLocation(
+        in_layer=os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_W_LIMITS_FEATURE_CLASS),
         overlap_type='INTERSECT',
-        select_features=CONTOURS_SP_FEATURE_DATASET,
+        select_features=os.path.join(BASE_DIR, CONTOURS_WIP_SP_GEODATABASE, CONTOURS_SP_FEATURE_DATASET),
         selection_type='NEW_SELECTION',
         invert_spatial_relationship=True
     )
+
+    count = int(arcpy.management.GetCount(empty_tiles)[0])
 
     log(f'Deleting {count} empty tiles')
     arcpy.management.DeleteFeatures(empty_tiles)
