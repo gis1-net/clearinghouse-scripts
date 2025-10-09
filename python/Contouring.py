@@ -43,10 +43,13 @@ import subprocess
 import traceback
 import json
 import argparse
+import time
+from random import randrange
 
 #region Config Vars
 DATA_DRIVE = 'Z'
 LOG_FILE = 'contouring.log'
+LOCKS_DIR = 'Clearinghouse_Support/python/locks'
 Z_FACTOR_METERS = 3.280839895
 Z_FACTOR_FEET = 1
 CONTOUR_INTERVAL = 1
@@ -99,12 +102,15 @@ COORDINATE_SYSTEM_IS_METERS = None
 Z_FACTOR = None
 #endregion
 
+ACTION_LOCKS = []
+
 STEPS = [
     'contouring_remove_legacy_files',
     'contouring_compact_wip_geodatabase',
     'contouring_set_tif_nodata_values',
     'contouring_create_wip_geodatabase',
     'contouring_create_mosaic_dataset',
+    'contouring_add_rasters_to_mosaic_dataset',
     'contouring_define_nodata',
     'contouring_calculate_raster_statistics',
     'contouring_generate',
@@ -308,6 +314,53 @@ def get_inputs():
     if args.dry_run:
         sys.exit(0)
 
+def acquire_action_lock(action):
+    log(f'Attempting to acquire lock for action {action}')
+
+    os.makedirs(os.path.join(f'{DATA_DRIVE}:\\', LOCKS_DIR), exist_ok=True)
+
+    lock_file = os.path.join(f'{DATA_DRIVE}:\\', LOCKS_DIR, f'{action}.lock')
+
+    retries = 4 * 15 # Wait for up to 15 minutes
+
+    while os.path.isfile(lock_file):
+        with open(lock_file) as f: content = f.read()
+        
+        if retries == 0:
+            raise Exception(f'Could not acquire lock for action {action} ({content})')
+
+        retries -= 1
+        log(f"Action {action} is currently locked ({content}). Retrying in 15 seconds...")
+        time.sleep(15)
+
+    with open(lock_file, "w+") as file:
+        file.write(f"{STATE} {LOCALITY} {TARGET_SP_COORDINATE_SYSTEM}")
+        file.flush()
+        log(f'Acquired lock for action {action}')
+
+    ACTION_LOCKS.append(action)
+
+    return True
+
+def release_action_lock(action, fail_on_miss = True):
+    lock_file = os.path.join(f'{DATA_DRIVE}:\\', LOCKS_DIR, f'{action}.lock')
+
+    if not os.path.isfile(lock_file):
+        if fail_on_miss:
+            raise Exception(f'Could not find lock file for action {action}')
+        else:
+            return False
+
+    with open(lock_file) as f: content = f.read()
+        
+    if content == f"{STATE} {LOCALITY} {TARGET_SP_COORDINATE_SYSTEM}":
+        os.remove(lock_file)
+        ACTION_LOCKS.remove(action)
+        log(f'Releasing lock for action {action}')
+        return True
+    else:
+        raise Exception(f'Lock file for action {action} is owned by another process ({content}), could not release')
+
 #endregion
 
 #region ArcPy Helper Functions
@@ -486,12 +539,23 @@ def contouring_create_mosaic_dataset(mosaic_dataset):
         coordinate_system=tif_coordinate_system
     )
 
+def contouring_add_rasters_to_mosaic_dataset(mosaic_dataset):
+    log(f"STEP {STEPS.index('contouring_add_rasters_to_mosaic_dataset')}. contouring_add_rasters_to_mosaic_dataset")
+
+    acquire_action_lock('AddRastersToMosaicDataset')
+
+    tif_files_dir = os.path.join(BASE_DIR, TIF_FILES)
+
     log(f'Adding rasters from {tif_files_dir} to mosaic dataset {mosaic_dataset}')
+    # NOTE: This step tends to fail when being executed at the same time in multiple parallel consoles
+    # Therefore, a shared "action lock" file is created so that only one process at a time may access AddRastersToMosaicDataset
     arcpy.management.AddRastersToMosaicDataset(
         in_mosaic_dataset=mosaic_dataset,
         raster_type='Raster Dataset',
         input_path=tif_files_dir
     )
+
+    release_action_lock('AddRastersToMosaicDataset')
 
 def contouring_define_nodata(input_path):
     log(f"STEP {STEPS.index('contouring_define_nodata')}. contouring_define_nodata")
@@ -974,6 +1038,9 @@ def process_contour_lines():
     if STEP <= STEPS.index('contouring_create_mosaic_dataset'):
         contouring_create_mosaic_dataset(mosaic_dataset)
 
+    if STEP <= STEPS.index('contouring_add_rasters_to_mosaic_dataset'):
+        contouring_add_rasters_to_mosaic_dataset(mosaic_dataset)
+
     if STEP <= STEPS.index('contouring_define_nodata'):
         contouring_define_nodata(mosaic_dataset)
         
@@ -1101,6 +1168,9 @@ def main():
         log(f"An error occurred: {str(e)}")
         raise e
     finally:
+        for step in ACTION_LOCKS:
+            release_action_lock(step, fail_on_miss=False)
+
         cleanup_arcpy()
         end_time = datetime.datetime.now()
         log_time(start_time, end_time)
