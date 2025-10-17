@@ -44,7 +44,8 @@ import traceback
 import json
 import argparse
 import time
-from random import randrange
+import re
+import shutil
 
 #region Config Vars
 DATA_DRIVE = 'Z'
@@ -106,9 +107,8 @@ ACTION_LOCKS = []
 
 STEPS = [
     'contouring_remove_legacy_files',
-    'contouring_compact_wip_geodatabase',
-    'contouring_set_tif_nodata_values',
     'contouring_create_wip_geodatabase',
+    'contouring_set_tif_nodata_values',
     'contouring_create_mosaic_dataset',
     'contouring_add_rasters_to_mosaic_dataset',
     'contouring_define_nodata',
@@ -214,7 +214,7 @@ def clear_folder_contents(path):
     return files_deleted
 
 def locate_spcs_grid():
-    with open('Z:\\Clearinghouse_Support\\data\Boundaries\\SPCS_Zone_Boundaries.geojson') as file:
+    with open('Z:\\Clearinghouse_Support\\data\\Boundaries\\SPCS_Zone_Boundaries.geojson') as file:
         spcs_zones = json.load(file)['features']
         
         for spcs_zone in spcs_zones:
@@ -222,6 +222,27 @@ def locate_spcs_grid():
                 path = f"Z:\\Clearinghouse_Support\\data\\SPCS_5000Ft_Index_Grids_SP\\{spcs_zone['properties']['STATE'].replace(' ', '_')}\\{spcs_zone['properties']['SP_ZONE'].replace(' ', '_')}_INDEX_GRID_5000FT.shp"
                 if os.path.exists(path):
                     return path
+
+def get_county_boundary():
+    with open('Z:\\Clearinghouse_Support\\data\\Boundaries\\US_County_Details_And_Boundaries.geojson') as file:
+        counties = json.load(file)['features']
+
+        sanitized_locality = re.sub(r'\d', '', LOCALITY)
+
+        for county in counties:
+            if county['properties']['FULL_NAME'] == sanitized_locality and county['properties']['SPCS_ID'] == int(TARGET_SP_COORDINATE_SYSTEM):
+                path = f"Z:\\Clearinghouse_Support\\data\\County_Details_And_Boundaries_By_State\\{county['properties']['STATE'].replace(' ', '_')}.shp"
+
+                county_boundary = arcpy.management.SelectLayerByAttribute(
+                    in_layer_or_view=path,
+                    selection_type='NEW_SELECTION',
+                    where_clause=f"FULL_NAME = '{sanitized_locality}'"
+                )
+
+                return county_boundary
+
+    return None
+                
 
 def intro_message():
     """
@@ -266,7 +287,8 @@ def get_inputs():
         '-s', 
         '--step',
         default=STEPS[0],
-        help="Step to begin on (i.e. pick up where a previous execution ended)\nAllowed values:\n\t- " + "\n\t- ".join(STEPS))
+        help="Step to begin on (i.e. pick up where a previous execution ended)\nAllowed values:\n\t- " + "\n\t- ".join(STEPS)
+    )
     parser.add_argument(
         '--dry-run',
         action='store_true',
@@ -416,18 +438,17 @@ def arcpy_delete(path):
     """Deletes a feature class"""
 
     if arcpy.Exists(path):
-        log(f"Feature class exists: {path}, deleting...")
+        log(f"Deleting {path}...")
         
-        # Attempt to delete the feature class
         Delete_Succeeded = arcpy.management.Delete(in_data=[path])[0]
         
-        # Confirm deletion
         if not arcpy.Exists(path):
-            log(f"Successfully deleted: {path}")
+            log(f"Successfully deleted {path}")
+            return True
         else:
-            log(f"Deletion failed: {path}")
-    else:
-        log(f"Feature class does not exist: {path}")
+            log(f"Deletion failed {path}")
+
+    return False
 
 def generate_feature_class(workspace, wild_card, feature_type, recursive):
     """Creates a feature class"""
@@ -449,6 +470,15 @@ def read_mosaic_dataset_crs(mosaic_dataset):
     raster = arcpy.Raster(mosaic_dataset)
     return raster.spatialReference
 
+
+def compact_geodatabase(geodatabase):
+    """Compact a given geodatabase"""
+
+    log(f"Compacting geodatabase: {geodatabase}")
+    arcpy.Compact_management(geodatabase)
+    log("Intermediate geodatabase compaction completed.")
+
+
 #endregion
 
 #region Contour Line Processing Steps
@@ -461,32 +491,31 @@ def contouring_remove_legacy_files():
 
     # Delete legacy Geodatabases if any
     work_in_progress_geodatabase = os.path.join(BASE_DIR, "Contours_Work_In_Progress.gdb")
-    log(f"Deleting previous work_in_progress geodatabase, if any: {work_in_progress_geodatabase}")
     arcpy_delete(work_in_progress_geodatabase)
 
     step_1_geodatabase = os.path.join(BASE_DIR, "Contours_Step1.gdb")
-    log(f"Deleting previous step 1 geodatabase, if any: {step_1_geodatabase}")
     arcpy_delete(step_1_geodatabase)
 
     step_2_geodatabase = os.path.join(BASE_DIR, "Contours_Step2.gdb")
-    log(f"Deleting previous step 2 geodatabase, if any: {step_2_geodatabase}")
     arcpy_delete(step_2_geodatabase)
 
     step_3_geodatabase = os.path.join(BASE_DIR, "Contours_Step3.gdb")
-    log(f"Deleting previous step 3 geodatabase, if any: {step_3_geodatabase}")
     arcpy_delete(step_3_geodatabase)
 
-def contouring_compact_wip_geodatabase():
-    """Compact the contours geodatabase"""
+def contouring_create_wip_geodatabase():
+    """Create Contours WIP Geodatabase"""
 
-    log(f"STEP {STEPS.index('contouring_compact_wip_geodatabase')}. contouring_compact_wip_geodatabase")
+    log(f"STEP {STEPS.index('contouring_create_wip_geodatabase')}. contouring_create_wip_geodatabase")
 
-    # Intermediate compaction of the county contours geodatabase
-    # (This geodatabase is reused later for exporting and further processing)
     contours_wip_geodatabase = os.path.join(BASE_DIR, CONTOURS_WIP_GEODATABASE)
-    log(f"Compacting geodatabase: {contours_wip_geodatabase}")
-    arcpy.Compact_management(contours_wip_geodatabase)
-    log("Intermediate geodatabase compaction completed.")
+
+    arcpy_delete(contours_wip_geodatabase)
+
+    log(f"Creating Contours WIP Geodatabase {contours_wip_geodatabase}")
+    arcpy.management.CreateFileGDB(
+        out_folder_path=BASE_DIR,
+        out_name=CONTOURS_WIP_GEODATABASE
+    )
 
 def contouring_set_tif_nodata_values():
     """Set standard NoData value for all .tif files"""
@@ -502,30 +531,14 @@ def contouring_set_tif_nodata_values():
             log(f'Setting {file_path} NoData value to {NO_DATA_VALUE}')
             arcpy.management.SetRasterProperties(in_raster=file_path, nodata=f'1 {NO_DATA_VALUE}')
 
-def contouring_create_wip_geodatabase():
-    """Create Contours WIP Geodatabase"""
-
-    log(f"STEP {STEPS.index('contouring_create_wip_geodatabase')}. contouring_create_wip_geodatabase")
-
-    contours_wip_geodatabase = os.path.join(BASE_DIR, CONTOURS_WIP_GEODATABASE)
-
-    if arcpy.Exists(contours_wip_geodatabase):
-        arcpy_delete(contours_wip_geodatabase)
-
-    log(f"Creating Contours WIP Geodatabase {contours_wip_geodatabase}")
-    arcpy.management.CreateFileGDB(
-        out_folder_path=BASE_DIR,
-        out_name=CONTOURS_WIP_GEODATABASE
-    )
-
 def contouring_create_mosaic_dataset(mosaic_dataset):
     """Create mosaic dataset from Tif Files"""
     
     log(f"STEP {STEPS.index('contouring_create_mosaic_dataset')}. contouring_create_mosaic_dataset")
 
     # Delete old mosaic dataset, if exists
-    log(f"Deleting old mosaic dataset, if any: {mosaic_dataset}")
-    arcpy_delete(mosaic_dataset)
+    if arcpy_delete(mosaic_dataset):
+        compact_geodatabase(mosaic_dataset)
 
     tif_files_dir = os.path.join(BASE_DIR, TIF_FILES)
     example_tif_file = [f for f in os.listdir(tif_files_dir) if os.path.isfile(os.path.join(tif_files_dir, f)) and f.endswith('.tif')][0]
@@ -591,8 +604,8 @@ def contouring_generate(input_path, output_path):
 
     log(f"STEP {STEPS.index('contouring_generate')}. contouring_generate")
 
-    if arcpy.Exists(output_path):
-        arcpy_delete(output_path)
+    if arcpy_delete(output_path):
+        compact_geodatabase(os.path.join(BASE_DIR, CONTOURS_WIP_GEODATABASE))
 
     log("Starting Contour process.")
     arcpy.ddd.Contour(
@@ -747,13 +760,31 @@ def contouring_create_output_geodatabase():
     )
 
     spcs_grid = locate_spcs_grid()
+    log(f"Using SPCS Grid {spcs_grid}")
 
-    log("Adding Tile Index Data to Geodatabase")
+    county_boundary = get_county_boundary()
+    log(f"Using County Boundary {county_boundary}")
+
+    county_tiles = spcs_grid
+
+    if county_boundary:
+        log(f"Trimming SPCS Grid to County Boundary")
+        county_tiles = arcpy.management.SelectLayerByLocation(
+            in_layer=spcs_grid,
+            overlap_type='INTERSECT',
+            select_features=county_boundary,
+            selection_type='NEW_SELECTION',
+            search_distance=500
+        )
+    else:
+        log(f"No county boundary found, skipping trim")
+
+    log("Adding Tile Index Data to Output Geodatabase")
     arcpy.conversion.ExportFeatures(
-        in_features=spcs_grid,
+        in_features=county_tiles,
         out_features=os.path.join(output_geodatabase, TILE_INDEX_FEATURE_CLASS)
     )
-
+    
 def contouring_split(input_path, output_path, split_path, split_field):
     log(f"STEP {STEPS.index('contouring_split')}. contouring_split")
 
@@ -785,12 +816,16 @@ def contouring_export_tiles(input_path):
     log("Starting export and processing of shapefiles and DWGs...")
 
     shapefile_output_folder = os.path.join(BASE_DIR, SHAPEFILE_OUTPUT_FOLDER)
-    if not os.path.exists(shapefile_output_folder):
-        os.makedirs(shapefile_output_folder)
+    if os.path.exists(shapefile_output_folder):
+        shutil.rmtree(shapefile_output_folder)
+        
+    os.makedirs(shapefile_output_folder)
 
     dwg_output_folder = os.path.join(BASE_DIR, DWG_OUTPUT_FOLDER)
-    if not os.path.exists(dwg_output_folder):
-        os.makedirs(dwg_output_folder)
+    if os.path.exists(dwg_output_folder):
+        shutil.rmtree(dwg_output_folder)
+        
+    os.makedirs(dwg_output_folder)
         
     for FC_Variable, Name in generate_feature_class(input_path, "", "LINE", "NOT_RECURSIVE"):
         
@@ -877,44 +912,32 @@ def index_remove_legacy_files():
 
     log(f"STEP {STEPS.index('index_remove_legacy_files')}. index_remove_legacy_files")
 
-    # Ensure there is no Boundary_UTM from an old model
-    mosaic_boundary = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, "Mosaic_Boundary")
-    log(f"Deleting Boundary UTM from old models, if any: {mosaic_boundary}")
-    arcpy_delete(mosaic_boundary)
-    
     # Delete all mosaic boundary files, if any present
     mosaic_boundary = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, MOSAIC_BOUNDARY_FEATURE_CLASS)
-    log(f"Deleting previous mosaic boundary files, if any: {mosaic_boundary}")
     arcpy_delete(mosaic_boundary)
 
     # Delete all mosaic boundary SP files, if any present
     mosaic_boundary_sp = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, MOSAIC_BOUNDARY_SP_FEATURE_CLASS)
-    log(f"Deleting previous mosaic boundary sp files, if any: {mosaic_boundary_sp}")
     arcpy_delete(mosaic_boundary_sp)
 
     # Delete all data limit file, if any present
     data_limits = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, DATA_LIMITS_FEATURE_CLASS)
-    log(f"Deleting previous data limits file, if any: {data_limits}")
     arcpy_delete(data_limits)
 
     # Delete data limit sp if any present
     data_limits_sp = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, DATA_LIMITS_SP_FEATURE_CLASS)
-    log(f"Deleting previous data limits sp file, if any: {data_limits_sp}")
     arcpy_delete(data_limits_sp)
 
     # Delete tile index with limits if any present
     tile_index_w_limits = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_W_LIMITS_FEATURE_CLASS)
-    log(f"Deleting previous WGS tile index file, if any: {tile_index_w_limits}")
     arcpy_delete(tile_index_w_limits)
 
     # Delete tile index WGS if any present
     tile_index_wgs = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_WGS_FEATURE_CLASS)
-    log(f"Deleting previous WGS tile index file, if any: {tile_index_wgs}")
     arcpy_delete(tile_index_wgs)
 
     # Delete geojson index if present
     boundary_geojson = os.path.join(BASE_DIR, f"{LOCALITY}_{CONTOURS_INDEX_JSON}")
-    log(f"Deleting previous GeoJSON index file, if any: {boundary_geojson}")
     arcpy_delete(boundary_geojson)
 
 def index_build_footprints(input_path):
@@ -1017,14 +1040,11 @@ def process_contour_lines():
     if STEP <= STEPS.index('contouring_remove_legacy_files'):
         contouring_remove_legacy_files()
         
-    if STEP <= STEPS.index('contouring_compact_wip_geodatabase'):
-        contouring_compact_wip_geodatabase()
-
-    if STEP <= STEPS.index('contouring_set_tif_nodata_values'):
-        contouring_set_tif_nodata_values()
-
     if STEP <= STEPS.index('contouring_create_wip_geodatabase'):
         contouring_create_wip_geodatabase()
+
+    # if STEP <= STEPS.index('contouring_set_tif_nodata_values'):
+    #     contouring_set_tif_nodata_values()
 
     mosaic_dataset = os.path.join(BASE_DIR, CONTOURS_WIP_GEODATABASE, MOSAIC_DATASET)
     
@@ -1044,6 +1064,9 @@ def process_contour_lines():
 
     if STEP <= STEPS.index('contouring_calculate_raster_statistics'):
         contouring_calculate_raster_statistics(mosaic_dataset)
+
+    if STEP <= STEPS.index('contouring_add_rasters'):
+        contouring_add_rasters(mosaic_dataset)
 
     initial_contours_feature_class = os.path.join(BASE_DIR, CONTOURS_WIP_GEODATABASE, CONTOURS_FEATURE_CLASS)
     

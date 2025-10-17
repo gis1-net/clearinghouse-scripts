@@ -47,17 +47,26 @@ Exit Condition:
 
 #>
 
-
-
 param (
     [string]$csvFile
 )
+
+# Check if running as admin
+$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+
+if (-not ($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))) {
+    Write-Host "Error: Powershell must be run as Admin to execute this script. Exiting." -ForegroundColor Red
+    exit 1
+}
 
 # Validate input CSV file and initialize logging
 if (-not (Test-Path $csvFile)) {
     Write-Host "Error: File '$csvFile' does not exist. Exiting." -ForegroundColor Red
     exit 1
 }
+
+$pythonPath = "python.exe"
+$pythonDir = "C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3"
 
 # Read the CSV file
 $rows = Import-Csv -Path $csvFile -Header State,County,CRS
@@ -89,9 +98,9 @@ function Start-NewTask {
     )
 
     
-    $pythonCommand = "python Z:\Clearinghouse_Support\python\Contouring.py $state $county $crs"
-    Write-Host "Starting task: $state $county $crs" -ForegroundColor Green
-    Add-Content $logFile "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Starting task: $state $county $crs"
+    $pythonCommand = "cd '$pythonDir'; .\$pythonPath Z:\Clearinghouse_Support\python\Contouring.py $state $county $crs"
+    Write-Host "Starting task: $pythonCommand" -ForegroundColor Green
+    Add-Content $logFile "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Starting task: $pythonCommand"
 
     $process = Start-Process powershell.exe -ArgumentList "-Command", $pythonCommand -PassThru -WindowStyle Minimized
     return $process
