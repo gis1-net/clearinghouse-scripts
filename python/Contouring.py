@@ -77,7 +77,7 @@ MOSAIC_BOUNDARY_SP_FEATURE_CLASS = "Mosaic_Boundary_SP"
 TIF_FILES = "Tif_Files_UTM"
 
 CONTOUR_TILES_FEATURE_DATASET = "Contour_Tiles"
-TILE_INDEX_FEATURE_DATASET = "Index_5000Ft"
+TILE_INDEX_FEATURE_CLASS = "Index_5000Ft"
 TILE_INDEX_W_LIMITS_FEATURE_CLASS = "Index_5000Ft_w_Limits"
 TILE_INDEX_WGS_FEATURE_CLASS = "Index_5000Ft_WGS"
 DATA_LIMITS_FEATURE_CLASS = "Data_Limits"
@@ -576,7 +576,7 @@ def contouring_calculate_raster_statistics(input_path):
 
     # Set this to ZERO so LocalWorker.exe doesn't go crazy
     arcpy.env.parallelProcessingFactor = 0
-    log(f"Environment parallelProcessingFactor set to 0.")
+    # log(f"Environment parallelProcessingFactor set to 0.")
 
     log("Calculating raster statistics...")
     arcpy.management.CalculateStatistics(input_path)
@@ -584,7 +584,7 @@ def contouring_calculate_raster_statistics(input_path):
 
     # Set this back to normal
     arcpy.env.parallelProcessingFactor = None
-    log(f"Environment parallelProcessingFactor set to None.")
+    # log(f"Environment parallelProcessingFactor set to None.")
 
 def contouring_generate(input_path, output_path):
     """Generate contour lines from mosaic dataset"""
@@ -746,19 +746,12 @@ def contouring_create_output_geodatabase():
         spatial_reference=TARGET_SP_COORDINATE_SYSTEM
     )
 
-    log("Creating Tile Index Feature Dataset")
-    arcpy.management.CreateFeatureDataset(
-        out_dataset_path=output_geodatabase,
-        out_name=TILE_INDEX_FEATURE_DATASET,
-        spatial_reference=TARGET_SP_COORDINATE_SYSTEM
-    )
-
     spcs_grid = locate_spcs_grid()
 
-    log("Adding Tile Index Data to Feature Dataset")
+    log("Adding Tile Index Data to Geodatabase")
     arcpy.conversion.ExportFeatures(
         in_features=spcs_grid,
-        out_features=os.path.join(output_geodatabase, TILE_INDEX_FEATURE_DATASET)
+        out_features=os.path.join(output_geodatabase, TILE_INDEX_FEATURE_CLASS)
     )
 
 def contouring_split(input_path, output_path, split_path, split_field):
@@ -1086,7 +1079,7 @@ def process_contour_lines():
         contouring_create_output_geodatabase()
 
     contour_tiles_feature_dataset = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, CONTOUR_TILES_FEATURE_DATASET)
-    tile_index = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_FEATURE_DATASET)
+    tile_index = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_FEATURE_CLASS)
     
     if STEP <= STEPS.index('contouring_split'):
         contouring_split(input_path=contours_feature_class, output_path=contour_tiles_feature_dataset, split_path=tile_index, split_field=CONTOUR_SPLIT_FIELD)    
@@ -1118,7 +1111,7 @@ def process_boundary_index():
     if STEP <= STEPS.index('index_project_sp'):
         index_project_sp(input_path=mosaic_boundary, output_path=projected_mosaic_boundary, spatial_reference=TARGET_SP_COORDINATE_SYSTEM)
         
-    tile_index_path = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_FEATURE_DATASET)
+    tile_index_path = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, TILE_INDEX_FEATURE_CLASS)
 
     intersect = os.path.join(BASE_DIR, OUTPUT_GEODATABASE, DATA_LIMITS_FEATURE_CLASS)
     
