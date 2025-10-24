@@ -97,6 +97,7 @@ STEP = 0
 STATE = None
 LOCALITY = None
 TARGET_SP_COORDINATE_SYSTEM = None
+REPAIR_GEOMETRY = None
 BASE_DIR = None
 OUTPUT_GEODATABASE = None
 COORDINATE_SYSTEM_IS_METERS = None
@@ -117,6 +118,7 @@ STEPS = [
     'contouring_filter',
     'contouring_create_wip_sp_geodatabase',
     'contouring_project',
+    'contouring_repair_geometry',
     'contouring_add_data_fields',
     'contouring_cleanup_data_fields',
     'contouring_create_output_geodatabase',
@@ -290,6 +292,12 @@ def get_inputs():
         help="Step to begin on (i.e. pick up where a previous execution ended)\nAllowed values:\n\t- " + "\n\t- ".join(STEPS)
     )
     parser.add_argument(
+        '-r',
+        '--repair-geometry',
+        action='store_true',
+        help="Run the repair geometry step"
+    )
+    parser.add_argument(
         '--dry-run',
         action='store_true',
         help="Output information about given arguments without executing the contouring process"
@@ -310,6 +318,7 @@ def get_inputs():
         STATE = args.state
         LOCALITY = args.locality
         TARGET_SP_COORDINATE_SYSTEM = args.spcs
+        REPAIR_GEOMETRY = args.repair_geometry
     else:
         MODE = "interactive"  # Require confirmation if no parameters are passed
         STATE = input("Enter the State Folder Name: ").strip()
@@ -676,11 +685,12 @@ def contouring_project(input_path, output_path):
     )
     log(f"Recalculation of Feature Class Extent completed. Output: {output_path}")
  
+def contouring_repair_geometry(input_path):
     log("Repairing Geometry.")
     arcpy.management.RepairGeometry(
-        in_features=output_path
+        in_features=input_path
     )
-    log(f"Repairing of Geometry completed. Output: {output_path}")
+    log(f"Repairing of Geometry completed. Output: {input_path}")
 
 def contouring_add_data_fields(input_path):
     log(f"STEP {STEPS.index('contouring_add_data_fields')}. contouring_add_data_fields")
@@ -1065,9 +1075,6 @@ def process_contour_lines():
     if STEP <= STEPS.index('contouring_calculate_raster_statistics'):
         contouring_calculate_raster_statistics(mosaic_dataset)
 
-    if STEP <= STEPS.index('contouring_add_rasters'):
-        contouring_add_rasters(mosaic_dataset)
-
     initial_contours_feature_class = os.path.join(BASE_DIR, CONTOURS_WIP_GEODATABASE, CONTOURS_FEATURE_CLASS)
     
     if STEP <= STEPS.index('contouring_generate'):
@@ -1090,7 +1097,13 @@ def process_contour_lines():
         contours_feature_class = projected_contours_feature_dataset
     else:
         if STEP <= STEPS.index('contouring_project'):
-            log(f"SKIPPING STEP {STEPS.index('contouring_export_tiles')}. contouring_export_tiles")
+            log(f"SKIPPING STEP {STEPS.index('contouring_project')}. contouring_project")
+
+    if STEP <= STEPS.index('contouring_repair_geometry'):
+        if REPAIR_GEOMETRY:
+            contouring_repair_geometry(contours_feature_class)
+        else:
+            log(f"SKIPPING STEP {STEPS.index('contouring_repair_geometry')}. contouring_repair_geometry")
 
     if STEP <= STEPS.index('contouring_add_data_fields'):
         contouring_add_data_fields(input_path=contours_feature_class)
